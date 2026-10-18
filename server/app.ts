@@ -286,9 +286,8 @@ export function createApp(ctx: AppContext): express.Express {
   app.get(
     '/api/projects/:id/recovery',
     asyncRoute(async (req, res) => {
-      const r = await projects.getRecovery(req.params.id);
-      if (!r) return res.status(404).json({ error: 'No recovery data' });
-      res.json(r);
+      // 200 with null when there is nothing to recover (not an error condition).
+      res.json(await projects.getRecovery(req.params.id));
     }),
   );
   app.delete(
