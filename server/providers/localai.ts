@@ -6,7 +6,7 @@
  * model downloads, queues generations (one at a time — they need the whole
  * GPU) and encodes the frames it produces into MP4 with FFmpeg.
  */
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -99,20 +99,15 @@ export class LocalEngine {
     return fs.existsSync(p) ? p : null;
   }
 
-  /** A system Python able to create the engine's virtual environment. */
-  systemPython(): { cmd: string; args: string[]; label: string } | null {
+  /** A system Python able to create the engine's virtual environment. Async so the server never blocks on it. */
+  async systemPython(): Promise<{ cmd: string; args: string[]; label: string } | null> {
     const candidates: Array<{ cmd: string; args: string[] }> = [];
     if (process.env.VOIDCRAFT_SYSTEM_PYTHON) candidates.push({ cmd: process.env.VOIDCRAFT_SYSTEM_PYTHON, args: [] });
-    if (IS_WIN) candidates.push({ cmd: 'py', args: ['-3.12'] }, { cmd: 'py', args: ['-3.11'] }, { cmd: 'py', args: ['-3'] }, { cmd: 'python', args: [] });
+    if (IS_WIN) candidates.push({ cmd: 'py', args: ['-3.12'] }, { cmd: 'py', args: ['-3.11'] }, { cmd: 'py', args: ['-3.10'] }, { cmd: 'py', args: ['-3'] }, { cmd: 'python', args: [] });
     else candidates.push({ cmd: 'python3.12', args: [] }, { cmd: 'python3.11', args: [] }, { cmd: 'python3', args: [] }, { cmd: 'python', args: [] });
     for (const c of candidates) {
-      try {
-        const r = spawnSync(c.cmd, [...c.args, '-c', 'import sys, venv; print(sys.version.split()[0])'], { encoding: 'utf8', windowsHide: true, timeout: 15_000 });
-        const v = r.stdout?.trim();
-        if (r.status === 0 && v && /^3\.(9|1[0-9])/.test(v)) return { ...c, label: `${[c.cmd, ...c.args].join(' ')} (Python ${v})` };
-      } catch {
-        /* not found */
-      }
+      const v = await probePython(c.cmd, c.args);
+      if (v && /^3\.(9|1[0-9])\./.test(v)) return { ...c, label: `${[c.cmd, ...c.args].join(' ')} (Python ${v})` };
     }
     return null;
   }
@@ -122,7 +117,7 @@ export class LocalEngine {
   }
 
   /** Run an engine command, streaming JSON events. Resolves with the final result event. */
-  run(args: string[], opts: { signal?: AbortSignal; onEvent?: (e: EngineEvent) => void; offline?: boolean } = {}): Promise<EngineEvent> {
+  run(args: string[], opts: { signal?: AbortSignal; onEvent?: (e: EngineEvent) => void; offline?: boolean; timeoutMs?: number } = {}): Promise<EngineEvent> {
     const py = this.venvPython();
     if (!py) return Promise.reject(new ProviderError('The local AI engine is not installed yet. Open Settings → Local AI and click “Install engine”.', 400));
     return new Promise((resolve, reject) => {
@@ -139,6 +134,13 @@ export class LocalEngine {
       let buf = '';
       const onAbort = () => child.kill(IS_WIN ? undefined : 'SIGKILL');
       opts.signal?.addEventListener('abort', onAbort, { once: true });
+      let timedOut = false;
+      const timer = opts.timeoutMs
+        ? setTimeout(() => {
+            timedOut = true;
+            onAbort();
+          }, opts.timeoutMs)
+        : null;
       child.stdout!.on('data', (chunk: Buffer) => {
         buf += chunk.toString('utf8');
         let idx: number;
@@ -162,6 +164,8 @@ export class LocalEngine {
       child.on('error', (err) => reject(new ProviderError(`Could not start the engine (${py}): ${err.message}`, 500)));
       child.on('close', (code) => {
         opts.signal?.removeEventListener('abort', onAbort);
+        if (timer) clearTimeout(timer);
+        if (timedOut) return reject(new ProviderError(`The engine did not answer within ${Math.round(opts.timeoutMs! / 1000)} s`, 504));
         if (opts.signal?.aborted) return reject(new ProviderError('Canceled', 499));
         if (code === 0 && last) return resolve(last);
         const tail = stderr.trim().split(/\r?\n/).filter(Boolean).slice(-4).join(' | ');
@@ -180,7 +184,7 @@ export class LocalEngine {
   async refresh(): Promise<EngineStatus> {
     if (this.refreshing) return this.refreshing;
     this.refreshing = (async () => {
-      const sys = this.systemPython();
+      const sys = await this.systemPython();
       const py = this.venvPython();
       if (!py) {
         this.status = {
@@ -191,7 +195,7 @@ export class LocalEngine {
         return this.status;
       }
       try {
-        const d = await this.run(['doctor']);
+        const d = await this.run(['doctor'], { timeoutMs: 180_000 });
         const ready = d.engine === true;
         this.status = {
           state: ready ? 'ready' : 'not-installed',
@@ -403,6 +407,29 @@ export function createLocalAiProvider(engine: LocalEngine): Provider {
   };
 }
 
+/** Python version printed by `cmd`, or null if it is missing, broken or hangs (e.g. the Windows Store alias). */
+function probePython(cmd: string, args: string[]): Promise<string | null> {
+  return new Promise((resolve) => {
+    let out = '';
+    let child: ChildProcess;
+    try {
+      child = spawn(cmd, [...args, '-c', 'import sys, venv; print(sys.version.split()[0])'], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return resolve(null);
+    }
+    const timer = setTimeout(() => child.kill(), 15_000);
+    child.stdout!.on('data', (c: Buffer) => (out += c.toString('utf8')));
+    child.on('error', () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve(code === 0 ? out.trim() || null : null);
+    });
+  });
+}
+
 function formatEta(s: number): string {
   if (s < 90) return `${Math.max(1, Math.round(s))} s`;
   if (s < 5400) return `${Math.round(s / 60)} min`;
@@ -410,10 +437,10 @@ function formatEta(s: number): string {
 }
 
 /** Long-running engine maintenance commands (setup, download) as plain processes with line output. */
-export function runSetup(engine: LocalEngine, opts: { cpu?: boolean; signal: AbortSignal; onLine: (line: string) => void }): Promise<void> {
-  const sys = engine.systemPython();
-  if (!sys) return Promise.reject(new ProviderError('Python 3.10-3.12 was not found. Install it first (Windows: “winget install Python.Python.3.12”, or python.org — tick “Add python.exe to PATH”), then try again.', 400));
-  return new Promise((resolve, reject) => {
+export async function runSetup(engine: LocalEngine, opts: { cpu?: boolean; signal: AbortSignal; onLine: (line: string) => void }): Promise<void> {
+  const sys = await engine.systemPython();
+  if (!sys) throw new ProviderError('Python 3.10-3.12 was not found. Install it first (Windows: “winget install Python.Python.3.12”, or python.org — tick “Add python.exe to PATH”), then try again.', 400);
+  return new Promise<void>((resolve, reject) => {
     const args = [...sys.args, path.join(engine.engineDir, 'setup_engine.py'), ...(opts.cpu ? ['--cpu'] : [])];
     log.info(`Engine setup: ${sys.cmd} ${args.join(' ')}`);
     const child = spawn(sys.cmd, args, { cwd: engine.engineDir, env: { ...engine.env(), PIP_DISABLE_PIP_VERSION_CHECK: '1' }, windowsHide: true });

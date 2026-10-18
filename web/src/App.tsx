@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FolderOpen, Plus, ServerCrash } from 'lucide-react';
-import { subscribeJobs } from './api';
+import { api, subscribeJobs } from './api';
 import { useApp, WORKSPACE_LAYOUT, type Workspace } from './store/app';
 import { useProject, usePlayback } from './store/project';
 import { TopBar } from './components/TopBar';
@@ -12,6 +12,7 @@ import { Timeline } from './components/Timeline';
 import { Preview } from './components/Preview';
 import { Inspector } from './components/Inspector';
 import { Empty } from './components/ui';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Home } from './workspaces/Home';
 import { GenerateCenter, GenerateParams, type GenMode } from './workspaces/Generate';
 import { Storyboard } from './workspaces/Storyboard';
@@ -55,9 +56,22 @@ function useBootstrap() {
       },
     );
     const sys = setInterval(() => void useApp.getState().refreshSystem().catch(() => undefined), 30_000);
+    // The server checks the local AI engine in the background after it starts; follow it until done.
+    const engineCheck = setInterval(() => {
+      const st = useApp.getState();
+      if (st.engine?.status.state !== 'checking' && st.system?.localAi.state !== 'checking') return;
+      void api
+        .engine()
+        .then(async (e) => {
+          useApp.setState({ engine: e });
+          if (e.status.state !== 'checking') await Promise.all([st.refreshProviders(), st.refreshSystem()]);
+        })
+        .catch(() => undefined);
+    }, 2000);
     return () => {
       unsub();
       clearInterval(sys);
+      clearInterval(engineCheck);
     };
   }, [refreshAll]);
 }
@@ -166,6 +180,31 @@ function rightFor(ws: Workspace) {
   }
 }
 
+const goHome = () => useApp.getState().setWorkspace('home');
+
+/** Shown when the live connection to the local server drops (e.g. its window was closed). */
+function ConnectionBanner() {
+  const connected = useApp((s) => s.sseConnected);
+  const [everConnected, setEverConnected] = useState(false);
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (connected) {
+      setEverConnected(true);
+      setShow(false);
+      return;
+    }
+    if (!everConnected) return;
+    const t = setTimeout(() => setShow(true), 4000);
+    return () => clearTimeout(t);
+  }, [connected, everConnected]);
+  if (!show) return null;
+  return (
+    <div className="conn-banner" role="status">
+      Lost connection to the Voidcraft server — is the <span className="mono">start-windows.bat</span> window still open? Reconnecting automatically…
+    </div>
+  );
+}
+
 function WorkspaceLayout() {
   const ws = useApp((s) => s.workspace);
   const overrides = useApp((s) => s.panelOverrides);
@@ -179,13 +218,17 @@ function WorkspaceLayout() {
       <Panel id="top" order={1} minSize={25}>
         <PanelGroup direction="horizontal" autoSaveId={`vc-horizontal-${right ? 'r' : 'n'}`}>
           <Panel id="center" order={1} minSize={30}>
-            {centerFor(ws)}
+            <ErrorBoundary key={ws} label="This workspace" onHome={goHome}>
+              {centerFor(ws)}
+            </ErrorBoundary>
           </Panel>
           {right && (
             <>
               <PanelResizeHandle className="resize-h" />
               <Panel id="right" order={2} defaultSize={27} minSize={18} maxSize={50}>
-                {rightFor(ws)}
+                <ErrorBoundary key={ws} label="This panel" onHome={goHome}>
+                  {rightFor(ws)}
+                </ErrorBoundary>
               </Panel>
             </>
           )}
@@ -196,7 +239,9 @@ function WorkspaceLayout() {
           <PanelResizeHandle className="resize-v" />
           <Panel id="timeline" order={2} defaultSize={36} minSize={14} maxSize={70}>
             {hasProject ? (
-              <Timeline />
+              <ErrorBoundary label="The timeline" onHome={goHome}>
+                <Timeline />
+              </ErrorBoundary>
             ) : (
               <div className="panel">
                 <Empty title="No project open">Generated clips are saved to the asset library. Open or create a project to arrange them on the timeline.</Empty>
@@ -235,10 +280,11 @@ export function App() {
       <TopBar />
       <Sidebar />
       <main className="main">
+        <ConnectionBanner />
         {serverError ? (
           <div className="workspace">
             <Empty icon={<ServerCrash size={36} />} title="Cannot reach the Voidcraft server" action={<button className="btn primary" onClick={() => void refreshAll()}>Retry</button>}>
-              {serverError} Start it with <span className="mono">npm run dev</span> (or <span className="mono">npm start</span> after building) and try again.
+              {serverError} Start it with <span className="mono">start-windows.bat</span> (or <span className="mono">npm start</span>), keep that window open, and press Retry.
             </Empty>
           </div>
         ) : (

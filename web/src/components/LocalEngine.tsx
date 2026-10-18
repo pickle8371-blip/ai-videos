@@ -71,11 +71,15 @@ export function EnginePanel() {
           <div className="grow">
             <div style={{ color: 'var(--text-0)' }}>{s.message}</div>
             <div className="tiny muted">
-              {s.state === 'ready' ? `PyTorch ${s.torch} · diffusers ${s.diffusers}${s.device === 'cpu' ? ` · ${s.cpuThreads} CPU threads` : ''}` : s.systemPython ? `Found ${s.systemPython}` : 'No suitable Python found'}
+              {s.state === 'ready' ? `PyTorch ${s.torch} · diffusers ${s.diffusers}${s.device === 'cpu' ? ` · ${s.cpuThreads} CPU threads` : ''}` : s.state === 'checking' ? '' : s.systemPython ? `Found ${s.systemPython}` : 'No suitable Python found'}
             </div>
           </div>
         </div>
-        {setup ? (
+        {s.state === 'checking' ? (
+          <div className="row small muted">
+            <Loader2 size={13} className="spin" /> Checking the engine (loading PyTorch can take up to a minute)…
+          </div>
+        ) : setup ? (
           <div className="col">
             <div className="row between small">
               <span className="ellipsis grow">{setup.message ?? 'Installing…'}</span>
@@ -206,7 +210,11 @@ export function EngineInline({ modelId }: { modelId?: string }) {
         <HardDrive size={15} />
         <strong className="grow">Set up local AI generation</strong>
       </div>
-      {setup ? (
+      {s.state === 'checking' ? (
+        <div className="row small">
+          <Loader2 size={13} className="spin" /> Checking the local AI engine…
+        </div>
+      ) : setup ? (
         <>
           <div className="tiny ellipsis">{setup.message ?? 'Installing engine…'}</div>
           <Progress value={setup.progress} />

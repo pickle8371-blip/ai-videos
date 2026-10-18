@@ -51,7 +51,8 @@ export async function createContext(overrides: Partial<ServerConfig> = {}, provi
   await Promise.all([assets.load(), secrets.load(), settings.load()]);
   await projects.load();
   await registry.load();
-  await engine.refresh();
+  // The engine check imports PyTorch, which can take a while; never hold up the web server for it.
+  void engine.refresh().then(() => registry.load()).catch(() => undefined);
   registerEngineJobs(jobs, engine);
   await jobs.load();
   return { config, assets, projects, secrets, settings, registry, jobs, exports, engine };

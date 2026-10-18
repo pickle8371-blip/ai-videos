@@ -87,16 +87,25 @@ export const useGen = create<GenStore>((set) => ({
   set: (mode, patch) => set((s) => ({ forms: { ...s.forms, [mode]: { ...s.forms[mode], ...patch } } })),
 }));
 
+/** Modes whose model was chosen automatically (not by the user), so a better choice may replace it later. */
+const autoPicked = new Set<GenMode>();
+
 function useForm(mode: GenMode) {
   const form = useGen((s) => s.forms[mode]);
   const set = useGen((s) => s.set);
   const providers = useApp((s) => s.providers);
   const settings = useApp((s) => s.settings);
-  // Pick a default model: settings default if it supports the task, else first configured AI model, else local test.
+  // Pick a default model: settings default if it supports the task, else a ready local model, else the recommended one.
   useEffect(() => {
-    if (form.providerId || !providers.length) return;
+    if (!providers.length) return;
     const all = modelsFor(providers, TASK[mode]);
     const ready = all.filter((o) => o.model.available !== false && o.provider.configured && o.provider.enabled);
+    if (form.providerId) {
+      // Keep the current choice unless it was automatic and became usable models appeared since
+      // (e.g. the engine check finished after the page loaded).
+      const current = ready.some((o) => o.provider.id === form.providerId && o.model.id === form.modelId);
+      if (!autoPicked.has(mode) || current || !ready.length) return;
+    }
     const local = all.filter((o) => o.provider.id === 'local-ai');
     const pref = ready.find((o) => o.provider.id === settings?.defaults.videoProviderId && o.model.id === settings?.defaults.videoModelId);
     // Prefer a ready local model; otherwise select the recommended local model so its setup card shows.
@@ -107,11 +116,21 @@ function useForm(mode: GenMode) {
       ready[0] ??
       local.find((o) => o.model.local?.recommended) ??
       local[0];
-    if (choice) set(mode, { providerId: choice.provider.id, modelId: choice.model.id, aspectRatio: settings?.defaults.aspectRatio ?? '16:9' });
-  }, [providers, form.providerId, mode, set, settings]);
+    if (!choice || (choice.provider.id === form.providerId && choice.model.id === form.modelId)) return;
+    autoPicked.add(mode);
+    set(mode, { providerId: choice.provider.id, modelId: choice.model.id, ...(form.providerId ? {} : { aspectRatio: settings?.defaults.aspectRatio ?? '16:9' }) });
+  }, [providers, form.providerId, form.modelId, mode, set, settings]);
   const model: ModelInfo | undefined = providers.find((p) => p.id === form.providerId)?.models.find((m) => m.id === form.modelId);
   const provider = providers.find((p) => p.id === form.providerId);
-  return { form, patch: (p: Partial<GenForm>) => set(mode, p), model, provider };
+  return {
+    form,
+    patch: (p: Partial<GenForm>) => {
+      if ('modelId' in p || 'providerId' in p) autoPicked.delete(mode);
+      set(mode, p);
+    },
+    model,
+    provider,
+  };
 }
 
 function buildParams(mode: GenMode, form: GenForm, model: ModelInfo | undefined): GenerationParams {

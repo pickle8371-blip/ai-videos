@@ -1653,3 +1653,50 @@ h4 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Crash screen (ErrorBoundary) and lost-connection banner */
+.crash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  background: var(--bg-0);
+  overflow: auto;
+}
+.crash-box {
+  max-width: 720px;
+  width: 100%;
+  padding: 20px;
+  border: 1px solid var(--err);
+  border-radius: var(--radius);
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.crash-box h2 {
+  margin: 0 0 8px;
+  color: var(--text-0);
+}
+.crash-box pre {
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-0);
+  color: var(--err);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.conn-banner {
+  padding: 6px 12px;
+  background: var(--err-soft);
+  border-bottom: 1px solid var(--err);
+  color: var(--text-0);
+  font-size: 12.5px;
+}

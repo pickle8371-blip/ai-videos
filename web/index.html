@@ -7,8 +7,41 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0b0f'/%3E%3Cpath d='M8 9l8 15 8-15' stroke='%239b6dff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
     <title>Voidcraft.Video</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;background:#0a0a0d;color:#c6c6d0;font-family:'Segoe UI',system-ui,sans-serif">
+    <div id="root">
+      <div id="vc-boot" style="max-width:640px;margin:15vh auto;padding:0 24px;font-size:15px;line-height:1.55">
+        <div style="font-size:20px;color:#f4f4f7;margin-bottom:8px">Voidcraft.Video</div>
+        <div id="vc-boot-msg">Loading…</div>
+      </div>
+    </div>
+    <script>
+      // Plain-script fallback: explains a page that would otherwise stay black when the app cannot start.
+      (function () {
+        var errors = [];
+        window.addEventListener('error', function (e) {
+          var t = e.target;
+          if (t && (t.src || t.href)) errors.push('Could not load ' + (t.src || t.href));
+          else if (e.message) errors.push(e.message);
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          errors.push(String((e.reason && e.reason.message) || e.reason));
+        });
+        function show(html) {
+          var el = document.getElementById('vc-boot-msg');
+          if (el) el.innerHTML = html;
+        }
+        var start = '<b>Double-click <code>start-windows.bat</code></b> in the Voidcraft folder and keep its window open. It opens <a style="color:#c4b5fd" href="http://localhost:5174">http://localhost:5174</a> in your browser when the server is ready.';
+        if (location.protocol === 'file:') {
+          show('This page cannot be opened as a file — the app runs through its local server.<br><br>' + start);
+          return;
+        }
+        setTimeout(function () {
+          if (window.__voidcraftStarted) return;
+          var list = errors.length ? '<pre style="white-space:pre-wrap;color:#d9615b;font-size:12px">' + errors.slice(0, 6).join('\n').replace(/</g, '&lt;') + '</pre>' : '';
+          show('Voidcraft did not start in this browser.' + list + '<ul><li>Press <b>Ctrl+F5</b> to reload without the cache.</li><li>Use a current Google Chrome or Microsoft Edge.</li><li>Check that the <code>start-windows.bat</code> window is still open and shows “server listening”. If it closed, start it again: ' + start + '</li></ul>');
+        }, 10000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -302,6 +302,10 @@ export function TopBar() {
           <>
             <span className="dot" /> Local AI · {system?.localAi.device === 'cuda' ? system.localAi.gpu : system?.localAi.device?.toUpperCase()}
           </>
+        ) : system?.localAi.state === 'checking' ? (
+          <>
+            <Loader2 size={11} className="spin" /> Checking local AI…
+          </>
         ) : (
           <>
             <span className="dot" /> Set up local AI

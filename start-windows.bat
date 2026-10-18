@@ -27,15 +27,10 @@ if not exist node_modules (
   if errorlevel 1 goto :fail
 )
 
-if not exist dist-server\server\index.js goto :build
-if not exist dist-server\server\providers\localai.js goto :build
-if not exist dist-web\index.html goto :build
+rem Rebuild when there is no build yet or the source is newer (e.g. after unzipping an update).
+node scripts\needs-build.mjs
+if errorlevel 1 goto :build
 goto :run
-if not exist engine\.venv\Scripts\python.exe (
-  echo [Voidcraft] The local AI engine is not installed yet. Run setup-ai-windows.bat,
-  echo     or click "Install engine" in the app ^(Settings -^> Local AI^).
-  echo.
-)
 
 :build
 echo [Voidcraft] Building...
@@ -43,10 +38,19 @@ call npm run build
 if errorlevel 1 goto :fail
 
 :run
+if not exist engine\.venv\Scripts\python.exe (
+  echo [Voidcraft] The local AI engine is not installed yet. Run setup-ai-windows.bat,
+  echo     or click "Install engine" in the app ^(Settings -^> Local AI^).
+  echo.
+)
 if not defined VOIDCRAFT_PORT set VOIDCRAFT_PORT=5174
 echo [Voidcraft] Starting on http://localhost:%VOIDCRAFT_PORT%  (Ctrl+C to stop)
-start "" "http://localhost:%VOIDCRAFT_PORT%"
+echo [Voidcraft] Your browser opens when the server is ready. Keep this window open while you use the app.
+set VOIDCRAFT_OPEN_BROWSER=1
 node dist-server\server\index.js
+echo.
+echo [Voidcraft] The server stopped. If this was not you, copy the messages above when asking for help.
+pause
 goto :eof
 
 :fail

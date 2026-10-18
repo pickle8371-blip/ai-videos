@@ -21,6 +21,9 @@ export interface TestEnv {
 export async function makeEnv(opts: { dataDir?: string; providers?: Provider[]; config?: Record<string, unknown> } = {}): Promise<TestEnv> {
   const dataDir = opts.dataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'vc-int-'));
   const ctx = await createContext({ dataDir, pollIntervalMs: 50, port: 0, ...(opts.config ?? {}) }, opts.providers ?? ALL_PROVIDERS);
+  // The server checks the local AI engine in the background; tests start once that check is done.
+  await ctx.engine.refresh();
+  await ctx.registry.load();
   const app = createApp(ctx);
   return {
     ctx,
