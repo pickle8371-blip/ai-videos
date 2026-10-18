@@ -30,7 +30,7 @@ export function Dialogs() {
         <Modal title="About Voidcraft.Video" onClose={close}>
           <p style={{ margin: 0 }}>Voidcraft.Video is a local AI video production studio: generation through connected providers, storyboards, character and scene libraries, and a multitrack editor rendered with FFmpeg.</p>
           <p className="muted small" style={{ margin: 0 }}>
-            Results are only labelled AI-generated when a connected AI model produced them. The local test renderer and FFmpeg tools are always marked “Not AI”.
+            Results are only labelled AI-generated when an AI model (local or cloud) actually produced them. FFmpeg tools are always marked “Not AI”.
           </p>
         </Modal>
       );

@@ -48,7 +48,9 @@ export type JobTask =
   | 'text-to-speech'
   | 'transcribe'
   | 'export'
-  | 'tool';
+  | 'tool'
+  | 'engine-setup'
+  | 'model-download';
 
 export type JobStatus = 'queued' | 'submitting' | 'running' | 'downloading' | 'succeeded' | 'failed' | 'canceled';
 
@@ -93,6 +95,8 @@ export interface GenerationParams {
   complexity?: 'simple' | 'moderate' | 'complex';
   motionIntensity?: number;
   camera?: Camera;
+  /** Local models: quality preset (number of diffusion steps). */
+  quality?: 'fast' | 'standard' | 'high';
   /** Image-to-video. */
   startImageAssetId?: string | null;
   endImageAssetId?: string | null;
@@ -134,6 +138,8 @@ export interface ModelCapabilities {
   audio?: boolean;
   voices?: string[];
   imageInput?: 'data-uri' | 'public-url' | 'upload' | 'none';
+  /** Supports fast / standard / high quality presets (local models). */
+  qualityPresets?: boolean;
 }
 
 export interface ModelInfo {
@@ -145,6 +151,11 @@ export interface ModelInfo {
   notes?: string;
   docsUrl?: string;
   custom?: boolean;
+  /** False when the model cannot run yet (e.g. local weights not downloaded). */
+  available?: boolean;
+  unavailableReason?: string;
+  /** Local AI models only. */
+  local?: { installed: boolean; diskGB: number; minVramGB: number; license: string; recommended: boolean; test: boolean };
 }
 
 export interface ProviderInfo {
@@ -171,7 +182,8 @@ export interface SystemStatus {
   ffmpeg: { available: boolean; version: string | null; path: string | null; drawtext: boolean; error: string | null };
   dataDir: string;
   storage: { assetsBytes: number; exportsBytes: number; freeBytes: number | null };
-  demoMode: boolean;
+  /** Local AI engine summary (full details at /api/engine). */
+  localAi: { state: string; message: string; device: string | null; gpu: string | null; modelsInstalled: number };
   aiProvidersConfigured: string[];
   limits: { maxVideoBytes: number; maxImageBytes: number; maxAudioBytes: number };
 }

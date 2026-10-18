@@ -13,6 +13,8 @@ const LABEL: Record<string, string> = {
   transcribe: 'Transcription',
   export: 'Export',
   tool: 'Tool',
+  'engine-setup': 'Local AI engine installation',
+  'model-download': 'Model download',
 };
 
 /**
@@ -72,6 +74,12 @@ function onTransition(job: JobRecord, before: string | undefined) {
     }, { coalesce: 'record-assets' });
   }
   if (!TERMINAL.has(job.status) || before === undefined) return;
+  if (job.task === 'engine-setup' || job.task === 'model-download') {
+    void app.refreshEngine(true).catch(() => undefined);
+    if (job.status === 'succeeded') app.toast('ok', job.task === 'engine-setup' ? 'Local AI engine installed and verified' : `Model downloaded: ${job.modelId}`);
+    else if (job.status === 'failed') app.toast('err', `${label} failed: ${job.error ?? 'unknown error'}`);
+    return;
+  }
   if (job.status === 'succeeded') {
     void app.refreshAssets().catch(() => undefined);
     if (job.task === 'export') {

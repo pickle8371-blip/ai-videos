@@ -126,7 +126,7 @@ function Voice() {
     <div className="col" style={{ padding: 16, gap: 16 }}>
       <div className="card pad col">
         <h3>Text to speech</h3>
-        {ttsOptions.every((o) => !o.provider.configured) && <Notice kind="warn">No text-to-speech provider is connected. Add an OpenAI or ElevenLabs API key in Settings → Providers. Generated voices must be disclosed as AI where the provider's policy requires it.</Notice>}
+        {ttsOptions.every((o) => !o.provider.configured) && <Notice kind="warn">No text-to-speech provider is connected. Add an OpenAI or ElevenLabs API key in Settings → Cloud providers. Generated voices must be disclosed as AI where the provider's policy requires it.</Notice>}
         <div className="grid2">
           <Field label="Voice model">
             <ModelPicker task="text-to-speech" providerId={model.providerId} modelId={model.modelId} onChange={(providerId, modelId) => setModel({ providerId, modelId })} />
@@ -185,7 +185,7 @@ function Voice() {
       <div className="card pad col">
         <h3>Lip-sync</h3>
         <div className="small muted">
-          Lip-sync is an optional integration: register a lip-sync model as a custom Replicate or fal model (Settings → Providers → Custom models) with an input template using <span className="mono">{'{{video}}'}</span> and <span className="mono">{'{{audio}}'}</span>, and set <span className="mono">VOIDCRAFT_PUBLIC_URL</span> so the provider can fetch your media. No lip-sync model is bundled, so none runs by default.
+          Lip-sync is an optional integration: register a lip-sync model as a custom Replicate or fal model (Settings → Cloud providers → Custom models) with an input template using <span className="mono">{'{{video}}'}</span> and <span className="mono">{'{{audio}}'}</span>, and set <span className="mono">VOIDCRAFT_PUBLIC_URL</span> so the provider can fetch your media. No lip-sync model is bundled, so none runs by default.
         </div>
       </div>
     </div>
@@ -325,7 +325,7 @@ function Subtitles() {
     <div className="col" style={{ padding: 16, gap: 16 }}>
       <div className="card pad col">
         <h3>Transcribe speech</h3>
-        {sttOptions.every((o) => !o.provider.configured) && <Notice kind="warn">No transcription provider is connected. Add an OpenAI API key in Settings → Providers to use Whisper. You can still write subtitles manually or import an SRT file below.</Notice>}
+        {sttOptions.every((o) => !o.provider.configured) && <Notice kind="warn">No transcription provider is connected. Add an OpenAI API key in Settings → Cloud providers to use Whisper. You can still write subtitles manually or import an SRT file below.</Notice>}
         <div className="grid3">
           <Field label="Model">
             <ModelPicker task="transcribe" providerId={model.providerId} modelId={model.modelId} onChange={(providerId, modelId) => setModel({ providerId, modelId })} />

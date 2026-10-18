@@ -9,6 +9,7 @@ import { useApp } from '../store/app';
 import { useProject } from '../store/project';
 import { addAssetsToTimeline, ensureProject, errMsg, submitJob } from '../lib/actions';
 import { AssetSlot, CameraControls, DEFAULT_CAMERA, ModelPicker, modelsFor } from '../components/pickers';
+import { EngineInline } from '../components/LocalEngine';
 import { ASSET_DRAG_TYPE } from '../components/Timeline';
 import { Check, Empty, Field, Notice, Progress, ProvenanceBadge, Select, Seg, Slider, StatusBadge, formatDuration, timeAgo } from '../components/ui';
 
@@ -43,6 +44,7 @@ interface GenForm {
   characterIds: string[];
   environmentId: string | null;
   selectedJobId: string | null;
+  quality: 'fast' | 'standard' | 'high';
 }
 
 const blank = (): GenForm => ({
@@ -72,6 +74,7 @@ const blank = (): GenForm => ({
   characterIds: [],
   environmentId: null,
   selectedJobId: null,
+  quality: 'standard',
 });
 
 interface GenStore {
@@ -92,9 +95,18 @@ function useForm(mode: GenMode) {
   // Pick a default model: settings default if it supports the task, else first configured AI model, else local test.
   useEffect(() => {
     if (form.providerId || !providers.length) return;
-    const options = modelsFor(providers, TASK[mode]).filter((o) => o.provider.configured && o.provider.enabled);
-    const pref = options.find((o) => o.provider.id === settings?.defaults.videoProviderId && o.model.id === settings?.defaults.videoModelId);
-    const choice = pref ?? options.find((o) => o.provider.isAI) ?? options[0];
+    const all = modelsFor(providers, TASK[mode]);
+    const ready = all.filter((o) => o.model.available !== false && o.provider.configured && o.provider.enabled);
+    const local = all.filter((o) => o.provider.id === 'local-ai');
+    const pref = ready.find((o) => o.provider.id === settings?.defaults.videoProviderId && o.model.id === settings?.defaults.videoModelId);
+    // Prefer a ready local model; otherwise select the recommended local model so its setup card shows.
+    const choice =
+      pref ??
+      ready.find((o) => o.provider.id === 'local-ai' && o.model.local?.recommended) ??
+      ready.find((o) => o.provider.id === 'local-ai') ??
+      ready[0] ??
+      local.find((o) => o.model.local?.recommended) ??
+      local[0];
     if (choice) set(mode, { providerId: choice.provider.id, modelId: choice.model.id, aspectRatio: settings?.defaults.aspectRatio ?? '16:9' });
   }, [providers, form.providerId, mode, set, settings]);
   const model: ModelInfo | undefined = providers.find((p) => p.id === form.providerId)?.models.find((m) => m.id === form.modelId);
@@ -113,6 +125,7 @@ function buildParams(mode: GenMode, form: GenForm, model: ModelInfo | undefined)
     fps: caps.fps ? form.fps : undefined,
     seed: caps.seed ? form.seed : null,
     variations: form.variations,
+    quality: caps.qualityPresets ? form.quality : undefined,
     style: form.style,
     lighting: form.lighting,
     complexity: form.complexity,
@@ -155,6 +168,7 @@ export function GenerateCenter({ mode }: { mode: GenMode }) {
 
   const missing: string[] = [];
   if (!model) missing.push('choose a model');
+  else if (model.available === false) missing.push(model.local ? 'finish the local AI setup' : 'configure this model');
   if (mode !== 'image-to-video' && !form.prompt.trim()) missing.push('write a prompt');
   if (mode === 'image-to-video' && !form.startImageAssetId) missing.push('choose a start image');
   if (mode === 'video-to-video' && !form.sourceVideoAssetId) missing.push('choose source footage');
@@ -201,7 +215,7 @@ export function GenerateCenter({ mode }: { mode: GenMode }) {
         {mode === 'generate' ? <Clapperboard size={15} /> : mode === 'image-to-video' ? <ImagePlay size={15} /> : <Repeat2 size={15} />}
         {TITLE[mode]}
         <div className="grow" />
-        {provider && !provider.isAI && <span className="badge warn">Local test renderer — output is not AI generated</span>}
+        {provider?.id === 'local-ai' && <span className="badge accent">Runs on this computer · no API</span>}
         {(source || mode !== 'generate') && output && (
           <button className={`btn sm${compare ? ' active' : ''}`} onClick={() => setCompare(!compare)}>
             <Columns2 size={13} /> Compare
@@ -403,6 +417,7 @@ export function GenerateParams({ mode }: { mode: GenMode }) {
       <div className="panel-body">
         <div className="section">
           <h4>Model</h4>
+          {(!model || model.providerId === 'local-ai') && <EngineInline modelId={model?.id} />}
           <ModelPicker task={TASK[mode]} providerId={form.providerId} modelId={form.modelId} onChange={(providerId, modelId) => patch({ providerId, modelId })} />
           {provider && provider.limitations.length > 0 && (
             <details>
@@ -438,11 +453,16 @@ export function GenerateParams({ mode }: { mode: GenMode }) {
             <Field label="Transformation strength" hint={na(caps.strength)}>
               <Slider label="Strength" value={form.strength} min={0} max={1} disabled={!caps.strength} onChange={(v) => patch({ strength: v })} />
             </Field>
-            <div className="tiny muted">Source timing and audio are preserved only if the selected pipeline supports it. No hosted video-to-video model ships in the built-in catalog — add one as a custom Replicate/fal model in Settings.</div>
+            <div className="tiny muted">The local model restyles the first ~2 seconds of the source (16 frames at 8 fps); audio is not carried over. Lower strength keeps more of the original.</div>
           </div>
         )}
         <div className="section">
           <h4>Format</h4>
+          {caps.qualityPresets && (
+            <Field label="Quality" hint="More diffusion steps = better detail, proportionally slower.">
+              <Seg value={form.quality} onChange={(v) => patch({ quality: v })} options={[{ value: 'fast', label: 'Fast' }, { value: 'standard', label: 'Standard' }, { value: 'high', label: 'High' }]} />
+            </Field>
+          )}
           <Field label="Duration">
             <Seg value={form.duration} onChange={(v) => patch({ duration: v })} options={durOptions.slice(0, 12).map((d) => ({ value: d, label: `${d}s` }))} />
           </Field>

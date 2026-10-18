@@ -28,8 +28,14 @@ if not exist node_modules (
 )
 
 if not exist dist-server\server\index.js goto :build
+if not exist dist-server\server\providers\localai.js goto :build
 if not exist dist-web\index.html goto :build
 goto :run
+if not exist engine\.venv\Scripts\python.exe (
+  echo [Voidcraft] The local AI engine is not installed yet. Run setup-ai-windows.bat,
+  echo     or click "Install engine" in the app ^(Settings -^> Local AI^).
+  echo.
+)
 
 :build
 echo [Voidcraft] Building...

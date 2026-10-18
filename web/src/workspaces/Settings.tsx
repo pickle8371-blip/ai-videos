@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, ExternalLink, KeyRound, Loader2, Plug, Trash2, Plus, ShieldCheck, Settings as SettingsIcon, HardDrive, Keyboard, Lock } from 'lucide-react';
+import { CheckCircle2, ExternalLink, KeyRound, Loader2, Plug, Trash2, Plus, ShieldCheck, Settings as SettingsIcon, HardDrive, Keyboard, Lock, Cpu } from 'lucide-react';
+import { EnginePanel } from '../components/LocalEngine';
 import type { AppSettings, CustomModelDef, JobTask, ProviderInfo } from '../../../shared/api';
 import { api } from '../api';
 import { useApp } from '../store/app';
@@ -7,10 +8,10 @@ import { errMsg } from '../lib/actions';
 import { modelsFor } from '../components/pickers';
 import { Check, Field, Modal, Notice, Select, Seg, Slider, Tabs, formatBytes, timeAgo } from '../components/ui';
 
-type Tab = 'providers' | 'general' | 'export' | 'shortcuts' | 'privacy';
+type Tab = 'local' | 'providers' | 'general' | 'export' | 'shortcuts' | 'privacy';
 
 export function Settings() {
-  const [tab, setTab] = useState<Tab>('providers');
+  const [tab, setTab] = useState<Tab>('local');
   const settings = useApp((s) => s.settings);
   if (!settings) return null;
   return (
@@ -19,14 +20,15 @@ export function Settings() {
         <div className="page-header">
           <div>
             <h1>Settings</h1>
-            <p>Providers, defaults, storage and preferences. Credentials stay on the server, encrypted at rest.</p>
+            <p>Local AI engine and models, defaults, storage and preferences.</p>
           </div>
         </div>
         <Tabs
           value={tab}
           onChange={setTab}
           tabs={[
-            { value: 'providers', label: <span className="row"><Plug size={13} /> Providers</span> },
+            { value: 'local', label: <span className="row"><Cpu size={13} /> Local AI</span> },
+            { value: 'providers', label: <span className="row"><Plug size={13} /> Cloud providers (optional)</span> },
             { value: 'general', label: <span className="row"><SettingsIcon size={13} /> General</span> },
             { value: 'export', label: <span className="row"><HardDrive size={13} /> Export & storage</span> },
             { value: 'shortcuts', label: <span className="row"><Keyboard size={13} /> Shortcuts</span> },
@@ -34,6 +36,7 @@ export function Settings() {
           ]}
         />
         <div style={{ marginTop: 16 }}>
+          {tab === 'local' && <EnginePanel />}
           {tab === 'providers' && <Providers />}
           {tab === 'general' && <General settings={settings} />}
           {tab === 'export' && <ExportStorage settings={settings} />}
@@ -55,14 +58,14 @@ async function patch(p: Record<string, unknown>) {
 
 function Providers() {
   const providers = useApp((s) => s.providers);
-  const ai = providers.filter((p) => p.isAI);
+  const ai = providers.filter((p) => p.isAI && p.id !== 'local-ai');
   const local = providers.filter((p) => !p.isAI);
   return (
     <div className="col" style={{ gap: 14 }}>
       <Notice kind="accent">
         <div className="col" style={{ gap: 4 }}>
-          <strong>How credentials are handled</strong>
-          <span className="small">Keys are sent once to the local Voidcraft server, encrypted with AES-256-GCM and stored in the data directory. The browser only ever sees a masked hint. Environment variables (shown per field) override stored keys. Usage is billed by each provider under your own account.</span>
+          <strong>Optional — not needed for local generation</strong>
+          <span className="small">Voidcraft generates video on your own computer with the Local AI engine. These hosted services are only for people who also want to use a paid cloud model. Keys are sent once to the local Voidcraft server, encrypted with AES-256-GCM and stored in the data directory. The browser only ever sees a masked hint. Environment variables (shown per field) override stored keys. Usage is billed by each provider under your own account.</span>
         </div>
       </Notice>
       {ai.map((p) => (

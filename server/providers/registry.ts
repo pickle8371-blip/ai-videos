@@ -9,7 +9,7 @@ import type { SettingsStore } from '../storage/settings.js';
 import { JsonCollection } from '../storage/jsonfile.js';
 import { runFfmpeg } from '../media/ffmpeg.js';
 import { registerSecret } from '../logger.js';
-import { localTestProvider, localToolsProvider } from './local.js';
+import { localToolsProvider } from './local.js';
 import { replicateProvider } from './replicate.js';
 import { falProvider } from './fal.js';
 import { lumaProvider } from './luma.js';
@@ -22,8 +22,8 @@ import { offlineTemplatesProvider } from '../ai.js';
 import type { Provider, ProviderContext } from './types.js';
 import { ProviderError } from './types.js';
 
+// The local AI provider is added at start-up (it needs the engine instance); see app.ts.
 export const ALL_PROVIDERS: Provider[] = [
-  localTestProvider,
   localToolsProvider,
   offlineTemplatesProvider,
   replicateProvider,
@@ -98,13 +98,17 @@ export class ProviderRegistry {
 
   isConfigured(id: string): boolean {
     const p = this.get(id);
-    if (!p.needsCredentials) return true;
+    if (!p.needsCredentials) return p.available ? p.available() : true;
     const creds = this.credentials(id);
     return p.info.credentialFields.filter((f) => f.secret).every((f) => Boolean(creds[f.key]));
   }
 
+  /** Cloud providers are off until they are configured (or explicitly enabled). Local providers are on. */
   isEnabled(id: string): boolean {
-    return this.settings.get().providers[id]?.enabled !== false;
+    const explicit = this.settings.get().providers[id]?.enabled;
+    if (explicit !== undefined) return explicit;
+    const p = this.get(id);
+    return !p.needsCredentials || this.isConfigured(id);
   }
 
   models(id: string): ModelInfo[] {
@@ -140,7 +144,7 @@ export class ProviderRegistry {
     };
   }
 
-  /** IDs of AI providers that are configured and enabled. Empty → demo mode. */
+  /** IDs of AI providers (local engine or cloud) that are ready and enabled. */
   configuredAiProviders(): string[] {
     return this.list()
       .filter((p) => p.info.isAI && this.isConfigured(p.info.id) && this.isEnabled(p.info.id))

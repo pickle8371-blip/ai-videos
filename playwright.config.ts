@@ -26,6 +26,6 @@ export default defineConfig({
     url: `http://127.0.0.1:${port}/api/health`,
     timeout: 180_000,
     reuseExistingServer: false,
-    env: { VOIDCRAFT_PORT: String(port), VOIDCRAFT_DATA_DIR: dataDir, VOIDCRAFT_POLL_MS: '300', VOIDCRAFT_QUIET: '1' },
+    env: { VOIDCRAFT_PORT: String(port), VOIDCRAFT_DATA_DIR: dataDir, VOIDCRAFT_POLL_MS: '300', VOIDCRAFT_QUIET: '1', VOIDCRAFT_ENGINE_TEST: '1' },
   },
 });

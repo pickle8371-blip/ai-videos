@@ -21,7 +21,8 @@ export function modelsFor(providers: ProviderInfo[], task: JobTask): Array<{ pro
 export function ModelPicker({ task, providerId, modelId, onChange }: { task: JobTask; providerId: string; modelId: string; onChange: (providerId: string, modelId: string) => void }) {
   const providers = useApp((s) => s.providers);
   const setWs = useApp((s) => s.setWorkspace);
-  const options = modelsFor(providers, task);
+  // Cloud providers only appear once configured; the local engine is always listed.
+  const options = modelsFor(providers, task).filter((o) => o.provider.id === 'local-ai' || (o.provider.configured && o.provider.enabled));
   const current = options.find((o) => o.provider.id === providerId && o.model.id === modelId);
   return (
     <div className="col">
@@ -38,12 +39,14 @@ export function ModelPicker({ task, providerId, modelId, onChange }: { task: Job
         {providers
           .filter((p) => options.some((o) => o.provider.id === p.id))
           .map((p) => (
-            <optgroup key={p.id} label={`${p.name}${p.isAI ? '' : ' — not AI'}${p.configured ? '' : ' (not configured)'}${p.enabled ? '' : ' (disabled)'}`}>
+            <optgroup key={p.id} label={p.id === 'local-ai' ? 'On this computer (no API)' : `${p.name}${p.isAI ? ' (cloud)' : ' — not AI'}`}>
               {options
                 .filter((o) => o.provider.id === p.id)
                 .map((o) => (
-                  <option key={o.model.id} value={`${p.id}::${o.model.id}`} disabled={!p.configured || !p.enabled}>
+                  <option key={o.model.id} value={`${p.id}::${o.model.id}`}>
                     {o.model.name}
+                    {o.model.local?.recommended ? ' — recommended' : ''}
+                    {o.model.available === false ? (o.model.local && !o.model.local.installed && p.configured ? ' (download needed)' : ' (setup needed)') : ''}
                   </option>
                 ))}
             </optgroup>
@@ -52,7 +55,7 @@ export function ModelPicker({ task, providerId, modelId, onChange }: { task: Job
       {current && (
         <div className="col" style={{ gap: 4 }}>
           <div className="row wrap" style={{ gap: 4 }}>
-            {current.provider.isAI ? <span className="badge accent">AI model</span> : <span className="badge warn">Not AI — test output</span>}
+            {current.provider.id === 'local-ai' ? <span className="badge accent">Local AI · no API</span> : current.provider.isAI ? <span className="badge accent">Cloud AI</span> : <span className="badge warn">Not AI</span>}
             {describeCaps(current.model).map((c) => (
               <span key={c} className="badge">
                 {c}
@@ -62,11 +65,12 @@ export function ModelPicker({ task, providerId, modelId, onChange }: { task: Job
           {current.model.notes && <div className="tiny muted">{current.model.notes}</div>}
         </div>
       )}
-      {!options.some((o) => o.provider.isAI && o.provider.configured) && (
+      {current?.model.available === false && <div className="tiny" style={{ color: 'var(--warn)' }}>{current.model.unavailableReason}</div>}
+      {options.length === 0 && (
         <div className="tiny muted">
-          No AI provider is connected for this task.{' '}
+          No local model supports this task yet.{' '}
           <button className="btn sm ghost" style={{ height: 20, padding: '0 4px' }} onClick={() => setWs('settings')}>
-            Connect one in Settings →
+            Open Settings →
           </button>
         </div>
       )}

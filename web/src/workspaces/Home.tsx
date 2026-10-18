@@ -3,6 +3,7 @@ import { Clapperboard, FolderOpen, ImagePlay, LayoutTemplate, Plus, RotateCcw, S
 import type { ProjectSummary } from '../../../shared/project';
 import { api, thumbUrl } from '../api';
 import { useApp } from '../store/app';
+import { EngineInline } from '../components/LocalEngine';
 import { useProject } from '../store/project';
 import { deleteProject, downloadBundle, errMsg, newProject, openProject } from '../lib/actions';
 import { Empty, Notice, formatBytes, timeAgo, StatusBadge } from '../components/ui';
@@ -18,7 +19,6 @@ export function Home() {
   const current = useProject((s) => s.project);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [demoBusy, setDemoBusy] = useState(false);
   const load = () => api.projects().then(setProjects).catch((e) => setError(errMsg(e)));
   useEffect(() => {
     void load();
@@ -28,18 +28,6 @@ export function Home() {
   const aiProviders = providers.filter((p) => p.isAI);
   const last = projects?.[0];
 
-  const createDemo = async () => {
-    setDemoBusy(true);
-    try {
-      const p = await api.createDemo();
-      await useApp.getState().refreshAssets();
-      await openProject(p.id);
-    } catch (err) {
-      useApp.getState().toast('err', errMsg(err));
-    } finally {
-      setDemoBusy(false);
-    }
-  };
 
   return (
     <div className="workspace">
@@ -66,17 +54,11 @@ export function Home() {
             </Notice>
           </div>
         )}
-        {system?.demoMode && (
+        {system && (system.localAi.state !== 'ready' || system.localAi.modelsInstalled === 0) ? (
           <div style={{ marginBottom: 16 }}>
-            <Notice kind="accent">
-              <strong>Demo mode:</strong> no AI provider is connected, so only the local test renderer (clearly labelled “Not AI”) can produce clips. Connect Replicate, fal, Luma, Runway, OpenAI or Google in{' '}
-              <button className="btn sm" style={{ height: 22 }} onClick={() => setWs('settings')}>
-                Settings → Providers
-              </button>{' '}
-              to generate real AI video.
-            </Notice>
+            <EngineInline />
           </div>
-        )}
+        ) : null}
         {recovery.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <Notice kind="warn">
@@ -146,10 +128,10 @@ export function Home() {
                   <Empty icon={<Sparkles size={28} />} title="No projects yet" action={
                     <div className="row">
                       <button className="btn primary" onClick={() => setDialog({ kind: 'new-project' })}>Create a project</button>
-                      <button className="btn" disabled={demoBusy || !system?.ffmpeg.available} onClick={() => void createDemo()}>{demoBusy ? 'Building demo…' : 'Open the demo project'}</button>
+                      <button className="btn" onClick={() => setWs('generate')}>Generate a video</button>
                     </div>
                   }>
-                    The demo project uses synthetic sample media to show storyboards, characters, the timeline, effects and export.
+                    Start by generating a clip on your own computer, or create a project to storyboard and edit.
                   </Empty>
                 )}
                 {(projects ?? []).slice(0, 8).map((p) => (
@@ -179,13 +161,6 @@ export function Home() {
                   </div>
                 ))}
               </div>
-              {projects && projects.length > 0 && (
-                <div className="row">
-                  <button className="btn sm ghost" disabled={demoBusy || !system?.ffmpeg.available} onClick={() => void createDemo()}>
-                    {demoBusy ? 'Building demo…' : '+ Add the demo project'}
-                  </button>
-                </div>
-              )}
             </section>
 
             <section className="col">
@@ -242,17 +217,22 @@ export function Home() {
             <div className="card pad col">
               <div className="row">
                 <PlugZap size={15} />
-                <h3>Model connections</h3>
+                <h3>Local AI</h3>
               </div>
-              {aiProviders.map((p) => (
+              <div className="row small">
+                {system?.localAi.state === 'ready' ? <CheckCircle2 size={13} color="var(--ok)" /> : <AlertTriangle size={13} color="var(--warn)" />}
+                <span className="grow">{system?.localAi.message ?? 'Checking…'}</span>
+              </div>
+              <div className="tiny muted">{system?.localAi.modelsInstalled ?? 0} model(s) downloaded · no API keys needed</div>
+              {aiProviders.filter((p) => p.id !== 'local-ai' && p.configured).map((p) => (
                 <div key={p.id} className="row small">
-                  {p.configured && p.enabled ? <CheckCircle2 size={13} color="var(--ok)" /> : <span className="dot" style={{ color: 'var(--text-3)' }} />}
-                  <span className="grow">{p.name}</span>
-                  <span className="tiny muted">{p.configured ? (p.enabled ? `${p.usage.jobs} jobs` : 'disabled') : 'not connected'}</span>
+                  <CheckCircle2 size={13} color="var(--ok)" />
+                  <span className="grow">{p.name} (cloud)</span>
+                  <span className="tiny muted">{p.usage.jobs} jobs</span>
                 </div>
               ))}
               <button className="btn sm" onClick={() => setWs('settings')}>
-                Manage providers
+                Manage models
               </button>
             </div>
             <div className="card pad col">
@@ -275,17 +255,12 @@ export function Home() {
             <div className="card pad col">
               <h3>Getting started</h3>
               <ol className="small muted" style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <li>Connect an AI video provider in Settings (or try the labelled local test renderer).</li>
+                <li>Install the Local AI engine and download a model (Settings → Local AI) — one time.</li>
                 <li>Write a prompt in the AI Video Generator, or turn an idea into shots in AI Storyboard.</li>
                 <li>Create characters and environments to keep shots consistent.</li>
                 <li>Arrange clips on the timeline, add titles, music, subtitles and effects.</li>
                 <li>Export an MP4 — every export is validated before it is reported as done.</li>
               </ol>
-              {system?.demoMode && (
-                <div className="row tiny" style={{ color: 'var(--warn)' }}>
-                  <AlertTriangle size={12} /> Running without AI providers.
-                </div>
-              )}
             </div>
           </aside>
         </div>

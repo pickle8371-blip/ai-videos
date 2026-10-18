@@ -106,11 +106,12 @@ export class JobManager extends EventEmitter {
     let model: ModelInfo | null = null;
     if (!local) {
       const provider = this.registry.get(input.providerId);
+      if (!this.registry.isConfigured(input.providerId)) throw new ProviderError(`${provider.info.name} is not configured. Add credentials in Settings → Cloud providers.`, 400);
       if (!this.registry.isEnabled(input.providerId)) throw new ProviderError(`${provider.info.name} is disabled in Settings`, 400);
-      if (!this.registry.isConfigured(input.providerId)) throw new ProviderError(`${provider.info.name} is not configured. Add credentials in Settings → Providers.`, 400);
       if (!provider.submit) throw new ProviderError(`${provider.info.name} cannot run jobs`, 400);
       model = this.registry.findModel(input.providerId, input.modelId);
       if (!model.tasks.includes(input.task)) throw new ProviderError(`${model.name} does not support ${input.task}`, 400);
+      if (model.available === false) throw new ProviderError(model.unavailableReason ?? `${model.name} is not available`, 400);
     }
     const params = { ...(input.params as GenerationParams & Record<string, unknown>) };
     if (model) await this.validateParams(input.task, model, params, input.projectId ?? null);
@@ -381,7 +382,7 @@ export class JobManager extends EventEmitter {
       tags: [job.task, job.providerId],
       provenance: {
         aiGenerated: isAI,
-        generator: isAI ? `${job.providerId}/${job.modelId}` : job.providerId === 'local-test' ? 'Local test renderer (not AI)' : `FFmpeg tool: ${job.modelId}`,
+        generator: isAI ? `${job.providerId}/${job.modelId}` : `FFmpeg tool: ${job.modelId}`,
         providerId: job.providerId,
         modelId: job.modelId,
         jobId: job.id,

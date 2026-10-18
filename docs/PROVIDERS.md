@@ -31,11 +31,11 @@ everything.
 
 ## Built-in adapters
 
-### Local test renderer (`local-test`) — not AI
-FFmpeg placeholder clips so the pipeline can be exercised without keys. Text-to-video renders an
-animated gradient with the prompt text; image-to-video applies Ken Burns motion that follows the
-chosen camera move; video-to-video applies a filter restyle. Every frame carries a
-"NOT AI GENERATED" label and assets record `provenance.aiGenerated = false`.
+### Local AI (`local-ai`) — no credentials
+Open-weight models (Wan 2.1, LTX-Video, CogVideoX, AnimateDiff Lightning) run on your machine
+through `engine/voidcraft_engine.py` (PyTorch + diffusers). This is the default video provider.
+Setup, hardware and models: [LOCAL_AI.md](LOCAL_AI.md). All cloud providers below are optional
+and stay disabled until you add their key.
 
 ### Local FFmpeg tools (`local-tools`) — not AI
 Frame interpolation (`minterpolate`), upscaling (Lanczos + unsharp), aspect reframing (crop around
@@ -102,7 +102,7 @@ account can be pasted. Only use voices you have rights to.
 
 ## Custom models (Replicate & fal)
 
-Settings → Providers → Replicate/fal → **Add custom model** registers any model with:
+Settings → Cloud providers → Replicate/fal → **Add custom model** registers any model with:
 
 - **id** — `owner/name` or `owner/name:version` (Replicate) or the fal endpoint id;
 - **tasks** — which workspaces offer it (`text-to-video`, `image-to-video`, `video-to-video`,

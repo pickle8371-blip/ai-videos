@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { AppSettings, Asset, JobRecord, ProviderInfo, SystemStatus } from '../../../shared/api';
 import type { ProjectTemplate } from '../../../shared/factory';
-import { api } from '../api';
+import { api, type EngineView } from '../api';
 
 export type Workspace =
   | 'home'
@@ -65,6 +65,7 @@ interface AppState {
   assets: Asset[];
   jobs: JobRecord[];
   templates: ProjectTemplate[];
+  engine: EngineView | null;
   sseConnected: boolean;
   serverError: string | null;
   toasts: Toast[];
@@ -89,6 +90,7 @@ interface AppState {
   refreshAssets: () => Promise<void>;
   refreshJobs: () => Promise<void>;
   refreshTemplates: () => Promise<void>;
+  refreshEngine: (force?: boolean) => Promise<void>;
   upsertJob: (j: JobRecord) => void;
   upsertAsset: (a: Asset) => void;
   removeAsset: (id: string) => void;
@@ -122,6 +124,7 @@ export const useApp = create<AppState>((set, get) => ({
   assets: [],
   jobs: [],
   templates: [],
+  engine: null,
   sseConnected: false,
   serverError: null,
   toasts: [],
@@ -178,7 +181,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   refreshAll: async () => {
     try {
-      await Promise.all([get().refreshSystem(), get().refreshSettings(), get().refreshProviders(), get().refreshAssets(), get().refreshJobs(), get().refreshTemplates()]);
+      await Promise.all([get().refreshSystem(), get().refreshSettings(), get().refreshProviders(), get().refreshAssets(), get().refreshJobs(), get().refreshTemplates(), get().refreshEngine()]);
       set({ serverError: null });
     } catch (err) {
       set({ serverError: (err as Error).message });
@@ -193,6 +196,10 @@ export const useApp = create<AppState>((set, get) => ({
   refreshAssets: async () => set({ assets: await api.assets() }),
   refreshJobs: async () => set({ jobs: await api.jobs() }),
   refreshTemplates: async () => set({ templates: await api.templates() }),
+  refreshEngine: async (force = false) => {
+    set({ engine: force ? await api.refreshEngine() : await api.engine() });
+    if (force) await Promise.all([get().refreshProviders(), get().refreshSystem()]);
+  },
   upsertJob: (j) =>
     set((s) => {
       const idx = s.jobs.findIndex((x) => x.id === j.id);

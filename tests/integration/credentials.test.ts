@@ -11,13 +11,13 @@ beforeAll(async () => {
 afterAll(async () => env.close());
 
 describe('provider configuration & credential protection', () => {
-  it('starts in demo mode with only local providers usable', async () => {
-    const sys = await env.agent.get('/api/system');
-    expect(sys.body.demoMode).toBe(true);
-    expect(sys.body.aiProvidersConfigured).toEqual([]);
-    const providers = (await env.agent.get('/api/providers')).body as Array<{ id: string; configured: boolean; isAI: boolean }>;
-    expect(providers.find((p) => p.id === 'local-test')).toMatchObject({ configured: true, isAI: false });
-    expect(providers.filter((p) => p.isAI).every((p) => !p.configured)).toBe(true);
+  it('needs no cloud credentials: cloud providers start unconfigured and disabled', async () => {
+    const providers = (await env.agent.get('/api/providers')).body as Array<{ id: string; configured: boolean; enabled: boolean; isAI: boolean }>;
+    expect(providers.find((p) => p.id === 'local-ai')).toMatchObject({ isAI: true, enabled: true });
+    const cloud = providers.filter((p) => p.isAI && p.id !== 'local-ai');
+    expect(cloud.length).toBeGreaterThan(0);
+    expect(cloud.every((p) => !p.configured && !p.enabled)).toBe(true);
+    expect((await env.agent.get('/api/system')).body.aiProvidersConfigured).not.toContain('replicate');
   });
 
   it('stores keys server-side and only ever returns a masked hint', async () => {
@@ -32,7 +32,7 @@ describe('provider configuration & credential protection', () => {
     }
     const raw = fs.readFileSync(path.join(env.dataDir, 'secrets.json'), 'utf8');
     expect(raw).not.toContain(KEY);
-    expect((await env.agent.get('/api/system')).body.demoMode).toBe(false);
+    expect((await env.agent.get('/api/system')).body.aiProvidersConfigured).toContain('replicate');
   });
 
   it('rejects unknown credential fields and whitespace', async () => {

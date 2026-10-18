@@ -48,8 +48,10 @@ export type StaticProviderInfo = Omit<ProviderInfo, 'configured' | 'credentialHi
 export interface Provider {
   info: StaticProviderInfo;
   models(settings: AppSettings, config: ServerConfig): ModelInfo[];
-  /** Whether the provider can run without credentials (local, non-AI providers). */
+  /** Whether the provider needs API credentials. Local providers don't. */
   needsCredentials: boolean;
+  /** For credential-less providers: whether it can run right now (e.g. local engine installed). */
+  available?(): boolean;
   testConnection?(ctx: ProviderContext): Promise<{ ok: boolean; message: string }>;
   submit?(job: JobRecord, model: ModelInfo, ctx: ProviderContext): Promise<SubmitResult>;
   poll?(job: JobRecord, model: ModelInfo, ctx: ProviderContext): Promise<PollResult>;

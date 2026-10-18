@@ -1,0 +1,254 @@
+{
+  "models": [
+    {
+      "id": "wan2.1-t2v-1.3b",
+      "name": "Wan 2.1 Text-to-Video 1.3B",
+      "pipeline": "wan",
+      "tasks": [
+        "text-to-video"
+      ],
+      "repos": [
+        {
+          "repo": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+        }
+      ],
+      "diskGB": 29,
+      "minVramGB": 8,
+      "fullVramGB": 24,
+      "fps": 16,
+      "frameRule": {
+        "multiple": 4,
+        "offset": 1,
+        "max": 81
+      },
+      "durations": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "sizes": {
+        "16:9": [
+          832,
+          480
+        ],
+        "9:16": [
+          480,
+          832
+        ],
+        "1:1": [
+          624,
+          624
+        ]
+      },
+      "steps": {
+        "fast": 20,
+        "standard": 30,
+        "high": 50
+      },
+      "guidance": 5.0,
+      "negativePrompt": true,
+      "license": "Apache-2.0",
+      "notes": "Best overall quality for 8 GB+ NVIDIA GPUs. 480p, up to 5 s. About 4-10 minutes per clip on an RTX 3060/4060."
+    },
+    {
+      "id": "ltx-video",
+      "name": "LTX-Video (text & image to video)",
+      "pipeline": "ltx",
+      "tasks": [
+        "text-to-video",
+        "image-to-video"
+      ],
+      "repos": [
+        {
+          "repo": "Lightricks/LTX-Video",
+          "allow": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/*",
+            "tokenizer/*",
+            "transformer/*",
+            "vae/*"
+          ]
+        }
+      ],
+      "diskGB": 28,
+      "minVramGB": 8,
+      "fullVramGB": 24,
+      "fps": 24,
+      "frameRule": {
+        "multiple": 8,
+        "offset": 1,
+        "max": 161
+      },
+      "durations": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "sizes": {
+        "16:9": [
+          768,
+          448
+        ],
+        "9:16": [
+          448,
+          768
+        ],
+        "1:1": [
+          576,
+          576
+        ]
+      },
+      "steps": {
+        "fast": 20,
+        "standard": 40,
+        "high": 50
+      },
+      "guidance": 3.0,
+      "negativePrompt": true,
+      "license": "LTX-Video Open Weights License",
+      "notes": "Fast model that also animates a still image. 24 fps."
+    },
+    {
+      "id": "cogvideox-2b",
+      "name": "CogVideoX 2B (low VRAM)",
+      "pipeline": "cogvideox",
+      "tasks": [
+        "text-to-video"
+      ],
+      "repos": [
+        {
+          "repo": "THUDM/CogVideoX-2b"
+        }
+      ],
+      "diskGB": 14,
+      "minVramGB": 4,
+      "fullVramGB": 18,
+      "fps": 8,
+      "frameRule": {
+        "fixed": 49
+      },
+      "durations": [
+        6
+      ],
+      "sizes": {
+        "16:9": [
+          720,
+          480
+        ]
+      },
+      "steps": {
+        "fast": 25,
+        "standard": 40,
+        "high": 50
+      },
+      "guidance": 6.0,
+      "negativePrompt": true,
+      "license": "Apache-2.0",
+      "notes": "Runs on 4-6 GB GPUs (slower, with offloading). Fixed 720x480, 6 s at 8 fps."
+    },
+    {
+      "id": "cogvideox-5b-i2v",
+      "name": "CogVideoX 5B Image-to-Video",
+      "pipeline": "cogvideox-i2v",
+      "tasks": [
+        "image-to-video"
+      ],
+      "repos": [
+        {
+          "repo": "THUDM/CogVideoX-5b-I2V"
+        }
+      ],
+      "diskGB": 22,
+      "minVramGB": 6,
+      "fullVramGB": 26,
+      "fps": 8,
+      "frameRule": {
+        "fixed": 49
+      },
+      "durations": [
+        6
+      ],
+      "sizes": {
+        "16:9": [
+          720,
+          480
+        ]
+      },
+      "steps": {
+        "fast": 25,
+        "standard": 40,
+        "high": 50
+      },
+      "guidance": 6.0,
+      "negativePrompt": true,
+      "license": "CogVideoX License",
+      "notes": "Animates a still image while keeping its look. Fixed 720x480, 6 s at 8 fps. Slow on small GPUs."
+    },
+    {
+      "id": "animatediff-lightning",
+      "name": "AnimateDiff Lightning (fast, works on CPU)",
+      "pipeline": "animatediff",
+      "tasks": [
+        "text-to-video",
+        "video-to-video"
+      ],
+      "repos": [
+        {
+          "repo": "emilianJR/epiCRealism",
+          "allow": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/*",
+            "tokenizer/*",
+            "unet/*",
+            "vae/*",
+            "feature_extractor/*"
+          ]
+        },
+        {
+          "repo": "ByteDance/AnimateDiff-Lightning",
+          "allow": [
+            "animatediff_lightning_4step_diffusers.safetensors"
+          ]
+        }
+      ],
+      "diskGB": 6,
+      "minVramGB": 0,
+      "fullVramGB": 6,
+      "fps": 8,
+      "frameRule": {
+        "fixed": 16
+      },
+      "durations": [
+        2
+      ],
+      "sizes": {
+        "16:9": [
+          768,
+          432
+        ],
+        "9:16": [
+          432,
+          768
+        ],
+        "1:1": [
+          512,
+          512
+        ]
+      },
+      "steps": {
+        "fast": 4,
+        "standard": 4,
+        "high": 4
+      },
+      "guidance": 1.0,
+      "negativePrompt": true,
+      "license": "CreativeML Open RAIL-M (base) / CreativeML Open RAIL++-M (adapter)",
+      "notes": "4-step model: seconds on a GPU, a few minutes on a CPU. 2 s clips, lower quality than the others. Also restyles existing footage (video-to-video)."
+    }
+  ]
+}

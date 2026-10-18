@@ -119,6 +119,7 @@ export function TopBar() {
   const progressJobs = running.filter((j) => j.progress !== null);
   const avg = progressJobs.length ? progressJobs.reduce((s, j) => s + (j.progress ?? 0), 0) / progressJobs.length : null;
   const unread = notices.filter((n) => !n.read).length;
+  const aiReady = system?.localAi.state === 'ready' && system.localAi.modelsInstalled > 0;
   const ps = useProject.getState;
   const go = (w: Workspace) => () => setWorkspace(w);
   const noP = !project;
@@ -287,23 +288,23 @@ export function TopBar() {
         <Save size={15} />
       </button>
       <button
-        className={`status-pill ${running.length ? 'accent' : system?.demoMode ? 'warn' : 'ok'}`}
+        className={`status-pill ${running.length ? 'accent' : aiReady ? 'ok' : 'warn'}`}
         style={{ background: 'none', cursor: 'pointer', margin: '0 6px' }}
-        title={system?.demoMode ? 'No AI provider connected: only the local, non-AI test renderer is available.' : 'Generation queue'}
-        onClick={() => setWorkspace(system?.demoMode && !running.length ? 'settings' : 'history')}
+        title={aiReady ? system?.localAi.message : 'Local AI is not set up yet — click to set it up'}
+        onClick={() => setWorkspace(!aiReady && !running.length ? 'settings' : 'history')}
       >
         {running.length ? (
           <>
             <Loader2 size={11} className="spin" /> {running.length} job{running.length > 1 ? 's' : ''}
             {avg !== null ? ` · ${Math.round(avg * 100)}%` : ''}
           </>
-        ) : system?.demoMode ? (
+        ) : aiReady ? (
           <>
-            <span className="dot" /> Demo mode
+            <span className="dot" /> Local AI · {system?.localAi.device === 'cuda' ? system.localAi.gpu : system?.localAi.device?.toUpperCase()}
           </>
         ) : (
           <>
-            <span className="dot" /> {system?.aiProvidersConfigured.length ?? 0} AI provider{system?.aiProvidersConfigured.length === 1 ? '' : 's'}
+            <span className="dot" /> Set up local AI
           </>
         )}
       </button>

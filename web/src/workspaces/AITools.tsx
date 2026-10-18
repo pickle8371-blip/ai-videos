@@ -286,7 +286,7 @@ export function AITools() {
           </ToolCard>
           <ToolCard icon={<Eraser size={15} />} title="Background & object removal, AI upscaling, AI interpolation" kind="integration">
             <Notice>
-              These require a specialised model. Register one as a <strong>custom model</strong> under Settings → Providers → Replicate / fal with an input template (for example <span className="mono">{'{"image": "{{image}}"}'}</span> or <span className="mono">{'{"video": "{{video}}"}'}</span>) and task “tool”. Video inputs need <span className="mono">VOIDCRAFT_PUBLIC_URL</span>. See docs/PROVIDERS.md.
+              These require a specialised model. Register one as a <strong>custom model</strong> under Settings → Cloud providers → Replicate / fal with an input template (for example <span className="mono">{'{"image": "{{image}}"}'}</span> or <span className="mono">{'{"video": "{{video}}"}'}</span>) and task “tool”. Video inputs need <span className="mono">VOIDCRAFT_PUBLIC_URL</span>. See docs/PROVIDERS.md.
             </Notice>
             <CustomToolRunner />
           </ToolCard>

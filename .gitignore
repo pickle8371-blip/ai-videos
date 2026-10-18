@@ -9,3 +9,5 @@ playwright-report/
 .env
 .env.*
 !.env.example
+engine/.venv/
+engine/__pycache__/

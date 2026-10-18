@@ -198,16 +198,7 @@ describe('project bundles', () => {
   });
 });
 
-describe('demo project & AI text tools', () => {
-  it('builds the demo project from labelled sample media', async () => {
-    const r = await env.agent.post('/api/demo');
-    expect(r.status).toBe(201);
-    const p = r.body as Project;
-    expect(p.storyboard.shots.length).toBe(5);
-    expect(p.characters[0].name).toBe('Kaito');
-    for (const id of p.assetIds) expect(env.ctx.assets.get(id)!.provenance.aiGenerated).toBe(false);
-  });
-
+describe('AI text tools', () => {
   it('runs offline (non-AI) storyboard and prompt tools', async () => {
     const r = await env.agent.post('/api/ai/storyboard').send({ providerId: 'offline-templates', input: { idea: 'A robot wakes up. It walks to the window. The city is flooded.', shotCount: 4 } });
     expect(r.body.isAI).toBe(false);

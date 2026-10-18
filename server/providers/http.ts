@@ -86,7 +86,7 @@ export async function request(f: typeof fetch, url: string, init: RequestInit, o
       await sleep(wait, opts.signal);
       continue;
     }
-    if (res.status === 401 || res.status === 403) throw new ProviderError(`Authentication failed (${res.status}): ${msg}. Check the API key in Settings → Providers.`, res.status, false);
+    if (res.status === 401 || res.status === 403) throw new ProviderError(`Authentication failed (${res.status}): ${msg}. Check the API key in Settings → Cloud providers.`, res.status, false);
     if (res.status === 429) throw new ProviderError(`Rate limited by provider: ${msg}`, 429, true, retryAfterMs(res));
     if (res.status === 402) throw new ProviderError(`Provider billing/credits problem (402): ${msg}`, 402, false);
     throw new ProviderError(`Provider error ${res.status}: ${msg}`, res.status, retryable);

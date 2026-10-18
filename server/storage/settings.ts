@@ -25,8 +25,8 @@ export const DEFAULT_SHORTCUTS: Record<string, string> = {
 export const DEFAULT_SETTINGS: AppSettings = {
   appearance: { density: 'comfortable', reducedMotion: false, accent: 'violet' },
   defaults: {
-    videoProviderId: 'local-test',
-    videoModelId: 'local-test-render',
+    videoProviderId: 'local-ai',
+    videoModelId: '',
     llmProviderId: 'offline-templates',
     imageProviderId: '',
     imageModelId: '',
@@ -41,7 +41,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   timeline: { snapping: true, rippleDelete: false, defaultZoom: 60 },
   performance: { previewScale: 0.5, maxConcurrentJobs: 3 },
   privacy: { logPrompts: false },
-  jobs: { timeoutMinutes: 30, maxRetries: 3 },
+  // Local generation on modest hardware can take a long time.
+  jobs: { timeoutMinutes: 240, maxRetries: 3 },
   providers: {},
   shortcuts: DEFAULT_SHORTCUTS,
 };
@@ -76,7 +77,7 @@ const SettingsPatchSchema = z
     timeline: z.object({ snapping: z.boolean(), rippleDelete: z.boolean(), defaultZoom: z.number().min(5).max(400) }).partial(),
     performance: z.object({ previewScale: z.number().min(0.25).max(1), maxConcurrentJobs: z.number().int().min(1).max(10) }).partial(),
     privacy: z.object({ logPrompts: z.boolean() }).partial(),
-    jobs: z.object({ timeoutMinutes: z.number().int().min(1).max(240), maxRetries: z.number().int().min(0).max(10) }).partial(),
+    jobs: z.object({ timeoutMinutes: z.number().int().min(1).max(1440), maxRetries: z.number().int().min(0).max(10) }).partial(),
     providers: z.record(z.string(), z.object({ enabled: z.boolean(), customModels: z.array(CustomModelSchema).max(50).optional() })),
     shortcuts: z.record(z.string(), z.string().max(40)),
   })

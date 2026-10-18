@@ -11,7 +11,7 @@ const MODEL = 'claude-opus-5-5';
 
 function toProviderError(err: unknown): ProviderError {
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-    return new ProviderError(`Authentication failed: ${err.message}. Check the Anthropic API key in Settings → Providers.`, err.status ?? 401);
+    return new ProviderError(`Authentication failed: ${err.message}. Check the Anthropic API key in Settings → Cloud providers.`, err.status ?? 401);
   }
   if (err instanceof Anthropic.RateLimitError) return new ProviderError(`Rate limited by Anthropic: ${err.message}`, 429, true);
   if (err instanceof Anthropic.BadRequestError) return new ProviderError(`Anthropic rejected the request: ${err.message}`, 400);

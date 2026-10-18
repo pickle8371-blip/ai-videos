@@ -180,27 +180,18 @@ describe('job lifecycle (mocked provider)', () => {
   });
 });
 
-describe('local test renderer (real FFmpeg, not AI)', () => {
-  it('renders a labelled clip and records non-AI provenance', async () => {
-    const res = await env.agent.post('/api/jobs').send({ task: 'text-to-video', providerId: 'local-test', modelId: 'local-test-render', params: { prompt: 'Lighthouse in a storm', duration: 2, aspectRatio: '9:16', resolution: '720p' } });
-    const job = await waitForJob(env, res.body[0].id);
-    expect(job.status).toBe('succeeded');
-    const a = env.ctx.assets.get(job.outputAssetIds[0])!;
-    expect(a).toMatchObject({ type: 'video', width: 720, height: 1280 });
-    expect(a.duration).toBeCloseTo(2, 0);
-    expect(a.provenance.aiGenerated).toBe(false);
-    expect(a.provenance.generator).toMatch(/not AI/);
-  });
-
-  it('animates an uploaded image (image-to-video) and runs FFmpeg tools', async () => {
-    const img = await upload(env, samples.image());
-    const res = await env.agent.post('/api/jobs').send({ task: 'image-to-video', providerId: 'local-test', modelId: 'local-test-render', params: { prompt: 'turn', startImageAssetId: img.body.id, duration: 2 } });
-    const job = await waitForJob(env, res.body[0].id);
-    expect(job.status, job.error ?? '').toBe('succeeded');
-    const vid = job.outputAssetIds[0];
-    const scene = await env.agent.post('/api/jobs').send({ task: 'tool', providerId: 'local-tools', modelId: 'extract-frame', params: { sourceAssetId: vid, time: 1 } });
-    const s = await waitForJob(env, scene.body[0].id);
-    expect(s.status, s.error ?? '').toBe('succeeded');
-    expect(env.ctx.assets.get(s.outputAssetIds[0])!.type).toBe('image');
+describe('FFmpeg tools (real FFmpeg, not AI)', () => {
+  it('extracts a frame and detects scene cuts', async () => {
+    const vid = await upload(env, samples.video());
+    const frame = await env.agent.post('/api/jobs').send({ task: 'tool', providerId: 'local-tools', modelId: 'extract-frame', params: { sourceAssetId: vid.body.id, time: 1 } });
+    const f = await waitForJob(env, frame.body[0].id);
+    expect(f.status, f.error ?? '').toBe('succeeded');
+    const img = env.ctx.assets.get(f.outputAssetIds[0])!;
+    expect(img.type).toBe('image');
+    expect(img.provenance.aiGenerated).toBe(false);
+    const scenes = await env.agent.post('/api/jobs').send({ task: 'tool', providerId: 'local-tools', modelId: 'scene-detect', params: { sourceAssetId: vid.body.id } });
+    const s = await waitForJob(env, scenes.body[0].id);
+    expect(s.status).toBe('succeeded');
+    expect(Array.isArray((s.result as { cuts: number[] }).cuts)).toBe(true);
   });
 });

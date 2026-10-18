@@ -21,8 +21,8 @@ import { detectFfmpeg, MediaError } from './media/ffmpeg.js';
 import { compileRender } from './media/render.js';
 import { runFfmpeg } from './media/ffmpeg.js';
 import { AI_TASKS, runAiTask, type AiTask } from './ai.js';
+import { LocalEngine, createLocalAiProvider, runSetup } from './providers/localai.js';
 import { newId } from '../shared/factory.js';
-import { createDemoProject } from './demo.js';
 
 export interface AppContext {
   config: ServerConfig;
@@ -33,6 +33,7 @@ export interface AppContext {
   registry: ProviderRegistry;
   jobs: JobManager;
   exports: ExportService;
+  engine: LocalEngine;
 }
 
 export async function createContext(overrides: Partial<ServerConfig> = {}, providers?: Provider[]): Promise<AppContext> {
@@ -43,13 +44,55 @@ export async function createContext(overrides: Partial<ServerConfig> = {}, provi
   const settings = new SettingsStore(config.dataDir);
   const projects = new ProjectStore(config.dataDir, assets);
   const registry = new ProviderRegistry(config, secrets, settings, assets, providers);
+  const engine = new LocalEngine(config);
+  registry.register(createLocalAiProvider(engine));
   const jobs = new JobManager(config, registry, assets, settings, projects);
   const exports = new ExportService(config.dataDir, assets, jobs, settings);
   await Promise.all([assets.load(), secrets.load(), settings.load()]);
   await projects.load();
   await registry.load();
+  await engine.refresh();
+  registerEngineJobs(jobs, engine);
   await jobs.load();
-  return { config, assets, projects, secrets, settings, registry, jobs, exports };
+  return { config, assets, projects, secrets, settings, registry, jobs, exports, engine };
+}
+
+/** Engine installation and model downloads run as jobs so the UI shows progress and they can be canceled. */
+function registerEngineJobs(jobs: JobManager, engine: LocalEngine) {
+  jobs.registerLocalHandler('engine-setup', async (job, ctx) => {
+    let lines = 0;
+    const log: string[] = [];
+    await runSetup(engine, {
+      cpu: Boolean((job.params as { cpu?: boolean }).cpu),
+      signal: ctx.signal,
+      onLine: (line) => {
+        lines++;
+        log.push(line);
+        // pip prints a lot; show the latest line and a rough progress estimate.
+        const f = /Successfully installed|Engine ready/.test(line) ? 0.95 : Math.min(0.9, lines / 400);
+        ctx.progress(f, line.slice(0, 200));
+      },
+    });
+    const status = await engine.refresh();
+    if (status.state !== 'ready') throw new Error(`Installed, but the self-check failed: ${status.message}`);
+    return { outputAssetIds: [], result: { status, log: log.slice(-40) } };
+  });
+  jobs.registerLocalHandler('model-download', async (job, ctx) => {
+    const id = String((job.params as { modelId?: string }).modelId);
+    await engine.run(['download', '--model', id], {
+      signal: ctx.signal,
+      onEvent: (ev) => {
+        if (ev.type === 'status') ctx.progress(0, String(ev.message));
+        if (ev.type === 'progress' && typeof ev.fraction === 'number') {
+          const gb = (n: unknown) => (Number(n) / 1024 ** 3).toFixed(1);
+          ctx.progress(ev.fraction, `${gb(ev.bytes)} / ${gb(ev.totalBytes)} GB`);
+        }
+      },
+    });
+    const status = await engine.refresh();
+    if (!status.installed[id]) throw new Error('Download finished but the model files are incomplete. Try again.');
+    return { outputAssetIds: [], result: { modelId: id } };
+  });
 }
 
 const asyncRoute = (fn: (req: Request, res: Response) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => {
@@ -137,7 +180,13 @@ export function createApp(ctx: AppContext): express.Express {
           exportsBytes: await assets.totalBytes((a) => a.origin === 'export'),
           freeBytes,
         },
-        demoMode: registry.configuredAiProviders().length === 0,
+        localAi: {
+          state: ctx.engine.status.state,
+          message: ctx.engine.status.message,
+          device: ctx.engine.status.device,
+          gpu: ctx.engine.status.gpu,
+          modelsInstalled: ctx.engine.catalog.filter((m) => !m.test && ctx.engine.status.installed[m.id]).length,
+        },
         aiProvidersConfigured: registry.configuredAiProviders(),
         limits: { maxVideoBytes: config.limits.maxVideoBytes, maxImageBytes: config.limits.maxImageBytes, maxAudioBytes: config.limits.maxAudioBytes },
       };
@@ -169,6 +218,56 @@ export function createApp(ctx: AppContext): express.Express {
       jobs.off('job', onJob);
     });
   });
+
+  /* -------------------------------------------------------- local engine */
+
+  const engineView = () => ({
+    status: ctx.engine.status,
+    recommended: ctx.engine.recommended(),
+    models: ctx.engine.catalog.map((m) => ({ ...m, installed: ctx.engine.status.installed[m.id] === true, estimate: ctx.engine.estimate(m) })),
+  });
+  app.get('/api/engine', (_req, res) => res.json(engineView()));
+  app.post(
+    '/api/engine/refresh',
+    asyncRoute(async (_req, res) => {
+      await ctx.engine.refresh();
+      await registry.load();
+      res.json(engineView());
+    }),
+  );
+  const activeJob = (task: string, key?: (p: Record<string, unknown>) => boolean) =>
+    jobs.list().find((j) => j.task === task && !['succeeded', 'failed', 'canceled'].includes(j.status) && (!key || key(j.params as Record<string, unknown>)));
+  app.post(
+    '/api/engine/setup',
+    asyncRoute(async (req, res) => {
+      const running = activeJob('engine-setup');
+      if (running) return res.json(running);
+      const [job] = await jobs.create({ task: 'engine-setup', providerId: 'local', modelId: 'engine', params: { cpu: req.body?.cpu === true, prompt: 'Install local AI engine' } });
+      res.status(201).json(job);
+    }),
+  );
+  app.post(
+    '/api/engine/models/:id/download',
+    asyncRoute(async (req, res) => {
+      const m = ctx.engine.catalog.find((x) => x.id === req.params.id && !x.test);
+      if (!m) bad('Unknown model', 404);
+      if (ctx.engine.status.state !== 'ready') bad('Install the local AI engine first');
+      const running = activeJob('model-download', (p) => p.modelId === m.id);
+      if (running) return res.json(running);
+      const [job] = await jobs.create({ task: 'model-download', providerId: 'local', modelId: m.id, params: { modelId: m.id, prompt: `Download ${m.name}` } });
+      res.status(201).json(job);
+    }),
+  );
+  app.delete(
+    '/api/engine/models/:id',
+    asyncRoute(async (req, res) => {
+      const m = ctx.engine.catalog.find((x) => x.id === req.params.id && !x.test);
+      if (!m) bad('Unknown model', 404);
+      const r = await ctx.engine.run(['delete', '--model', m.id]);
+      await ctx.engine.refresh();
+      res.json({ removedBytes: r.removedBytes ?? 0, ...engineView() });
+    }),
+  );
 
   /* ----------------------------------------------------------- settings */
 
@@ -330,8 +429,6 @@ export function createApp(ctx: AppContext): express.Express {
       res.download(tmp, `${p.name.replace(/[^\w.-]+/g, '_')}.voidcraft`, () => void fsp.rm(tmp, { force: true }));
     }),
   );
-
-  app.post('/api/demo', asyncRoute(async (_req, res) => res.status(201).json(await createDemoProject(ctx))));
 
   /* ---------------------------------------------------- templates/prompts */
 

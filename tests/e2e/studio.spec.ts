@@ -6,12 +6,11 @@ async function nav(page: Page, label: string) {
 
 test.describe.configure({ mode: 'serial' });
 
-test('home loads in demo mode and every workspace opens without errors', async ({ page }) => {
+test('home loads and every workspace opens without errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to Voidcraft.Video' })).toBeVisible();
-  await expect(page.getByText('Demo mode', { exact: true })).toBeVisible();
   for (const ws of ['AI Video Generator', 'Image to Video', 'Video to Video', 'AI Tools', 'Templates', 'Asset Library', 'Generation History', 'Settings', 'Home']) {
     await nav(page, ws);
     await page.waitForTimeout(250);
@@ -56,17 +55,17 @@ test('create a project, edit the timeline, undo/redo, save and reopen', async ({
   await expect(page.getByRole('button', { name: /Clip Opening titles/ })).toBeVisible();
 });
 
-test('generate with the local test renderer, place on timeline and export', async ({ page }) => {
+test('generate with the local AI engine, place on timeline and export', async ({ page }) => {
   await page.request.patch('/api/settings', { data: { autosaveSeconds: 5 } });
   await page.goto('/');
   // Open the project from the previous test.
   await page.locator('.list-row', { hasText: 'E2E Film' }).getByRole('button', { name: 'Open' }).click();
   await nav(page, 'AI Video Generator');
-  await expect(page.getByRole('combobox', { name: 'Model' })).toHaveValue('local-test::local-test-render');
+  // The e2e server runs with VOIDCRAFT_ENGINE_TEST=1, so the engine's tiny test pipelines are the downloaded models.
+  await expect(page.getByRole('combobox', { name: 'Model' })).toHaveValue(/^local-ai::test-tiny-/);
   await page.getByLabel('Prompt', { exact: true }).fill('A lighthouse on a cliff during a storm');
-  await page.getByRole('radiogroup').first().getByRole('radio', { name: '2s', exact: true }).click();
   await page.locator('.prompt-box').getByRole('button', { name: /^Generate/ }).click();
-  await expect(page.getByText('Not AI', { exact: true }).first()).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/^AI · local-ai/).first()).toBeVisible({ timeout: 180_000 });
   await page.getByRole('button', { name: 'Add to timeline' }).click();
   await expect(page.getByRole('button', { name: /Clip A lighthouse/ })).toBeVisible();
 
@@ -82,7 +81,10 @@ test('generate with the local test renderer, place on timeline and export', asyn
   // Leave the edits unsaved but wait until autosave has written the recovery slot.
   const projects = await (await page.request.get('/api/projects')).json();
   const id = projects.find((p: { name: string }) => p.name === 'E2E Film').id;
-  await expect.poll(async () => (await (await page.request.get(`/api/projects/${id}/recovery`)).json()) !== null, { timeout: 30_000 }).toBe(true);
+  // Wait for an autosave that already contains the generated (media) clip, not an earlier one.
+  await expect
+    .poll(async () => JSON.stringify(await (await page.request.get(`/api/projects/${id}/recovery`)).json()).includes('"kind":"media"'), { timeout: 30_000 })
+    .toBe(true);
 });
 
 test('recover autosaved work, then build a storyboard with offline templates', async ({ page }) => {
@@ -113,6 +115,9 @@ test('recover autosaved work, then build a storyboard with offline templates', a
 test('provider settings never expose stored keys', async ({ page }) => {
   await page.goto('/');
   await nav(page, 'Settings');
+  // Settings opens on Local AI; cloud providers are optional and live in their own tab.
+  await expect(page.getByRole('button', { name: /Install engine|Download|Delete/ }).first()).toBeVisible();
+  await page.getByRole('tab', { name: /Cloud providers/ }).click();
   const card = page.locator('.card', { hasText: 'Replicate' }).first();
   // Unconfigured AI providers start expanded.
   await card.getByLabel('API token').fill('r8_e2e_secret_token_value_42');
@@ -121,5 +126,4 @@ test('provider settings never expose stored keys', async ({ page }) => {
   await expect(card.getByText(/••••e_42/)).toBeVisible();
   const html = await page.content();
   expect(html).not.toContain('r8_e2e_secret_token_value_42');
-  await expect(page.getByText('Demo mode', { exact: true })).toHaveCount(0);
 });

@@ -17,8 +17,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
-    "test:e2e": "npm run build && playwright test",
-    "demo:seed": "tsx scripts/seed-demo.ts"
+    "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

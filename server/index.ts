@@ -8,8 +8,7 @@ async function main() {
     const url = `http://${ctx.config.host === '0.0.0.0' ? 'localhost' : ctx.config.host}:${ctx.config.port}`;
     log.info(`Voidcraft.Video server listening on ${url}`);
     log.info(`Data directory: ${ctx.config.dataDir}`);
-    const ai = ctx.registry.configuredAiProviders();
-    log.info(ai.length ? `AI providers configured: ${ai.join(', ')}` : 'No AI providers configured — running in demo mode (local test renderer only).');
+    log.info(`Local AI engine: ${ctx.engine.status.message}`);
   });
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') log.error(`Port ${ctx.config.port} is already in use. Set VOIDCRAFT_PORT to another port.`);

@@ -43,7 +43,7 @@ export function pickResolution(model: ModelInfo, requested: string | undefined):
 
 export function requireCred(creds: Record<string, string>, key: string, providerName: string): string {
   const v = creds[key];
-  if (!v) throw new ProviderError(`${providerName} is not configured. Add the API key in Settings → Providers.`, 400);
+  if (!v) throw new ProviderError(`${providerName} is not configured. Add the API key in Settings → Cloud providers.`, 400);
   return v;
 }
 

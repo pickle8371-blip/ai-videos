@@ -12,8 +12,17 @@ web/ (React + TypeScript + Vite)          server/ (Node + Express + TypeScript)
             timeline ops, prompt builder)  │               compiler, effects, filetype  │
                                            │ exports.ts    export/preview jobs          │
                                            │ ai.ts         text tools (LLM / offline)   │
-                                           └───────────────────────────────────────────┘
+                                           └──────────────────┬────────────────────────┘
+                                             providers/localai.ts spawns (JSON lines)
+                                                              ▼
+                                           engine/ (Python: PyTorch + diffusers)
+                                             voidcraft_engine.py doctor | download | generate
+                                             models.json (catalog) · weights in data/models
 ```
+
+- **engine/** is the local AI generator. `providers/localai.ts` runs one generation at a time as a
+  subprocess, reads JSON-line progress events, and encodes the returned PNG frames to H.264 with
+  FFmpeg. See [LOCAL_AI.md](LOCAL_AI.md).
 
 - **shared/** is imported by both sides: the project schema (`project.ts`), timeline math
   (`timeline.ts`), editing operations (`ops.ts`), effect definitions (`effects.ts`), prompt

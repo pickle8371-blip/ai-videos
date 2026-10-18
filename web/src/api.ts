@@ -63,7 +63,51 @@ export function uploadFile(file: File | Blob, fields: Record<string, string> = {
   });
 }
 
+export interface EngineModelView {
+  id: string;
+  name: string;
+  pipeline: string;
+  tasks: string[];
+  diskGB: number;
+  minVramGB: number;
+  fps: number;
+  durations: number[];
+  sizes: Record<string, [number, number]>;
+  license: string;
+  notes: string;
+  installed: boolean;
+  estimate: string;
+  test?: boolean;
+}
+
+export interface EngineView {
+  status: {
+    state: 'checking' | 'no-python' | 'not-installed' | 'ready' | 'error';
+    message: string;
+    python: string | null;
+    systemPython: string | null;
+    torch: string | null;
+    diffusers: string | null;
+    device: 'cuda' | 'mps' | 'cpu' | null;
+    gpu: string | null;
+    vramGB: number | null;
+    cpuThreads: number | null;
+    installed: Record<string, boolean>;
+    engineDir: string;
+    modelsDir: string;
+    checkedAt: string | null;
+  };
+  recommended: string | null;
+  models: EngineModelView[];
+}
+
 export const api = {
+  engine: () => call<EngineView>('GET', '/api/engine'),
+  refreshEngine: () => call<EngineView>('POST', '/api/engine/refresh'),
+  installEngine: (cpu = false) => call<JobRecord>('POST', '/api/engine/setup', { cpu }),
+  downloadModel: (id: string) => call<JobRecord>('POST', `/api/engine/models/${id}/download`),
+  deleteModel: (id: string) => call<EngineView & { removedBytes: number }>('DELETE', `/api/engine/models/${id}`),
+
   system: () => call<SystemStatus>('GET', '/api/system'),
   clearTemp: () => call<{ freedBytes: number }>('POST', '/api/system/clear-temp'),
   settings: () => call<AppSettings>('GET', '/api/settings'),
@@ -89,7 +133,6 @@ export const api = {
   saveAsTemplate: (id: string, name: string, description: string) => call<ProjectTemplate>('POST', `/api/projects/${id}/template`, { name, description }),
   importProject: (file: File, onProgress?: (p: UploadProgress) => void) =>
     uploadFile(file, {}, onProgress, '/api/projects/import') as unknown as Promise<{ project: Project; warnings: string[] }>,
-  createDemo: () => call<Project>('POST', '/api/demo'),
 
   templates: () => call<ProjectTemplate[]>('GET', '/api/templates'),
   deleteTemplate: (id: string) => call<{ ok: true }>('DELETE', `/api/templates/${id}`),
