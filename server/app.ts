@@ -61,17 +61,26 @@ export async function createContext(overrides: Partial<ServerConfig> = {}, provi
 /** Engine installation and model downloads run as jobs so the UI shows progress and they can be canceled. */
 function registerEngineJobs(jobs: JobManager, engine: LocalEngine) {
   jobs.registerLocalHandler('engine-setup', async (job, ctx) => {
-    let lines = 0;
+    let fraction = 0;
     const log: string[] = [];
+    // Stages announced by engine/setup_engine.py, in order.
+    const stages: Array<[RegExp, number]> = [
+      [/Installing the uv package manager/, 0.05],
+      [/Creating the engine environment|private Python|Using existing environment/, 0.12],
+      [/Installing PyTorch/, 0.2],
+      [/Installing diffusers/, 0.75],
+      [/Running self-check/, 0.9],
+      [/Engine ready/, 0.98],
+    ];
     await runSetup(engine, {
       cpu: Boolean((job.params as { cpu?: boolean }).cpu),
       signal: ctx.signal,
       onLine: (line) => {
-        lines++;
         log.push(line);
-        // pip prints a lot; show the latest line and a rough progress estimate.
-        const f = /Successfully installed|Engine ready/.test(line) ? 0.95 : Math.min(0.9, lines / 400);
-        ctx.progress(f, line.slice(0, 200));
+        const stage = stages.find(([re]) => re.test(line));
+        // Creep forward between stages so long downloads still show movement.
+        fraction = stage ? Math.max(fraction, stage[1]) : Math.min(fraction + 0.002, 0.89);
+        ctx.progress(fraction, line.replace(/^\[setup\] /, '').slice(0, 200));
       },
     });
     const status = await engine.refresh();

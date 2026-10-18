@@ -29,7 +29,7 @@ Asset Library · Generation History · Project Settings · Settings.
 - **Node.js 20.10+** (22 LTS recommended)
 - **FFmpeg + FFprobe** on `PATH` (or set `FFMPEG_PATH` / `FFPROBE_PATH`). Builds with `libx264`,
   `libfreetype` (drawtext), `libvpx` and `libmp3lame` are recommended; standard distributions include them.
-- For local AI: **Python 3.10–3.12** and ideally an **NVIDIA GPU with 8 GB+** (4 GB works with
+- For local AI: **Python 3** (any version; the installer sets up the Python 3.12 the engine needs) and ideally an **NVIDIA GPU with 8 GB+** (4 GB works with
   smaller models; CPU-only works with AnimateDiff Lightning, slowly). See [docs/LOCAL_AI.md](docs/LOCAL_AI.md).
 - A modern browser. Chrome/Edge play H.264 in the live preview; some open-source Chromium builds
   cannot — the preview then tells you, and "Exact frame" / "Render preview" still work.

@@ -92,7 +92,7 @@ export function EnginePanel() {
           </div>
         ) : s.state === 'no-python' ? (
           <Notice kind="warn">
-            Python 3.10-3.12 is required to run the AI models. On Windows open a terminal and run <span className="mono">winget install Python.Python.3.12</span> (or install from python.org and tick “Add python.exe to PATH”), restart Voidcraft, then click Install engine.
+            Python is needed to install the AI engine. On Windows open a terminal and run <span className="mono">winget install Python.Python.3.12</span> (or install from python.org and tick “Add python.exe to PATH”), restart Voidcraft, then click Install engine. Any Python 3 version works — the installer sets up the exact Python the engine needs.
           </Notice>
         ) : (
           s.state !== 'ready' && (

@@ -107,7 +107,7 @@ export class LocalEngine {
     else candidates.push({ cmd: 'python3.12', args: [] }, { cmd: 'python3.11', args: [] }, { cmd: 'python3', args: [] }, { cmd: 'python', args: [] });
     for (const c of candidates) {
       const v = await probePython(c.cmd, c.args);
-      if (v && /^3\.(9|1[0-9])\./.test(v)) return { ...c, label: `${[c.cmd, ...c.args].join(' ')} (Python ${v})` };
+      if (v && /^3\.([89]|[1-9][0-9])\./.test(v)) return { ...c, label: `${[c.cmd, ...c.args].join(' ')} (Python ${v})` };
     }
     return null;
   }
@@ -188,7 +188,7 @@ export class LocalEngine {
       const py = this.venvPython();
       if (!py) {
         this.status = {
-          ...this.blankStatus(sys ? 'not-installed' : 'no-python', sys ? 'The local AI engine is not installed. Click “Install engine” (downloads PyTorch and diffusers, ~3-5 GB).' : 'Python 3.10-3.12 was not found. Install it (Windows: winget install Python.Python.3.12), then click “Install engine”.'),
+          ...this.blankStatus(sys ? 'not-installed' : 'no-python', sys ? 'The local AI engine is not installed. Click “Install engine” (downloads PyTorch and diffusers, ~3-5 GB).' : 'Python 3 was not found. Install it (Windows: winget install Python.Python.3.12), restart Voidcraft, then click “Install engine”.'),
           systemPython: sys?.label ?? null,
           checkedAt: new Date().toISOString(),
         };
@@ -439,7 +439,7 @@ function formatEta(s: number): string {
 /** Long-running engine maintenance commands (setup, download) as plain processes with line output. */
 export async function runSetup(engine: LocalEngine, opts: { cpu?: boolean; signal: AbortSignal; onLine: (line: string) => void }): Promise<void> {
   const sys = await engine.systemPython();
-  if (!sys) throw new ProviderError('Python 3.10-3.12 was not found. Install it first (Windows: “winget install Python.Python.3.12”, or python.org — tick “Add python.exe to PATH”), then try again.', 400);
+  if (!sys) throw new ProviderError('Python 3 was not found. Install it first (Windows: “winget install Python.Python.3.12”, or python.org — tick “Add python.exe to PATH”), then try again.', 400);
   return new Promise<void>((resolve, reject) => {
     const args = [...sys.args, path.join(engine.engineDir, 'setup_engine.py'), ...(opts.cpu ? ['--cpu'] : [])];
     log.info(`Engine setup: ${sys.cmd} ${args.join(' ')}`);
@@ -461,7 +461,12 @@ export async function runSetup(engine: LocalEngine, opts: { cpu?: boolean; signa
       opts.signal.removeEventListener('abort', onAbort);
       if (opts.signal.aborted) return reject(new ProviderError('Canceled', 499));
       if (code === 0) resolve();
-      else reject(new ProviderError(`Engine installation failed: ${tail.filter((l) => /error|fail|not found|could not/i.test(l)).slice(-3).join(' | ') || tail.slice(-3).join(' | ')}`, 500));
+      else {
+        // The installer explains its own failures in plain words; fall back to the tool output.
+        const own = tail.filter((l) => l.startsWith('[setup] ERROR:')).map((l) => l.slice('[setup] ERROR: '.length));
+        const detail = own.length ? own.slice(-2).join(' ') : tail.filter((l) => /error|fail|not found|could not/i.test(l)).slice(-3).join(' | ') || tail.slice(-3).join(' | ');
+        reject(new ProviderError(`Engine installation failed: ${detail}`, 500));
+      }
     });
   });
 }

@@ -11,3 +11,6 @@ playwright-report/
 !.env.example
 engine/.venv/
 engine/__pycache__/
+engine/.bootstrap/
+engine/.python/
+engine/.uv-cache/

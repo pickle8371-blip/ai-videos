@@ -29,11 +29,14 @@ have, and automatically uses CPU offloading to fit smaller cards.
 
 ## Setup on Windows
 
-1. Install **Python 3.12**. Run `winget install Python.Python.3.12`, or use python.org and tick
-   "Add python.exe to PATH".
+1. Install **Python** if you don't have it: `winget install Python.Python.3.12`, or use python.org
+   and tick "Add python.exe to PATH". Any Python 3 version works; it is only used to start the installer.
 2. Double-click **`setup-ai-windows.bat`**. Alternatively, open the app and click
    **Settings → Local AI → Install engine**. Either way it:
-   - creates `engine\.venv`;
+   - installs the small `uv` package manager into `engine\.bootstrap`;
+   - creates `engine\.venv` with a 64-bit Python 3.12. If your installed Python can't run PyTorch
+     (too new or 32-bit), a private copy is downloaded into `engine\.python`. Your installed Python
+     is not changed;
    - detects your NVIDIA GPU;
    - installs the matching CUDA build of PyTorch plus diffusers (~3–5 GB);
    - runs a self-check.
@@ -77,7 +80,12 @@ These are rough figures for a 5 s clip at standard quality.
 
 ## Troubleshooting
 
-- **"Python 3.10-3.12 was not found".** Install Python 3.12, then reopen the terminal or app.
+- **"Python 3 was not found".** Install Python (`winget install Python.Python.3.12`), then reopen the terminal or app.
+- **"Could not find a version that satisfies the requirement torch".** This came from older versions
+  of the installer when the installed Python was too new or 32-bit. The installer now sets up its own
+  64-bit Python 3.12 in `engine\.python`, so run `setup-ai-windows.bat` again. If it still fails, the
+  download is blocked: allow Python through your firewall/antivirus (turn off "HTTPS scanning" while
+  installing) or try another network.
 - **"Could not reach huggingface.co".** A firewall, proxy or antivirus is blocking the model
   download. Allow `huggingface.co` and `*.hf.co`, or download on another network.
 - **"Out of GPU memory".** Close other GPU apps (games, browsers with hardware acceleration).

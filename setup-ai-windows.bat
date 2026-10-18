@@ -7,17 +7,21 @@ echo [Voidcraft] Local AI engine setup (PyTorch + diffusers, runs on this PC, no
 echo.
 
 set "PY="
-for %%V in (3.12 3.11 3.10) do (
+rem Any Python 3.8+ can run the installer; it sets up the exact Python the engine needs.
+for %%V in (3.12 3.11 3.13 3.10) do (
   if not defined PY (
     py -%%V -c "import sys" >nul 2>nul && set "PY=py -%%V"
   )
 )
 if not defined PY (
-  python -c "import sys; assert (3,9) <= sys.version_info[:2] < (3,14)" >nul 2>nul && set "PY=python"
+  py -3 -c "import sys; assert sys.version_info >= (3, 8)" >nul 2>nul && set "PY=py -3"
+)
+if not defined PY (
+  python -c "import sys; assert sys.version_info >= (3, 8)" >nul 2>nul && set "PY=python"
 )
 
 if not defined PY (
-  echo [Voidcraft] Python 3.10-3.12 was not found.
+  echo [Voidcraft] Python was not found.
   where winget >nul 2>nul
   if errorlevel 1 (
     echo     Install Python 3.12 from https://www.python.org/downloads/ ^(tick "Add python.exe to PATH"^),
@@ -35,7 +39,7 @@ if not defined PY (
 )
 
 echo [Voidcraft] Using %PY%
-echo [Voidcraft] Downloading PyTorch and diffusers (about 3-5 GB). This takes a while.
+echo [Voidcraft] Downloading the engine: Python 3.12 if needed, PyTorch and diffusers (about 1-5 GB). This takes a while.
 echo.
 %PY% engine\setup_engine.py %*
 if errorlevel 1 (
