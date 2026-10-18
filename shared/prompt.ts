@@ -104,7 +104,8 @@ export function cameraToText(camera: Camera | undefined): string {
   if (framing) parts.push(framing);
   if (camera.move !== 'static' || camera.framing === 'auto') {
     let move = CAMERA_MOVE_TEXT[camera.move];
-    if (camera.move !== 'static') move = `${speedWord(camera.speed)} ${move}`;
+    // Moves that already state their pace ("slow push-in") keep their own wording.
+    if (camera.move !== 'static' && !/\bslow\b/.test(move)) move = `${speedWord(camera.speed)} ${move}`;
     parts.push(move);
   }
   if (camera.direction !== 'auto' && !['panLeft', 'panRight', 'tiltUp', 'tiltDown'].includes(camera.move)) {

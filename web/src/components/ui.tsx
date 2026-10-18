@@ -2,10 +2,17 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { X, AlertTriangle, Info, CheckCircle2, XCircle } from 'lucide-react';
 
 export function Field({ label, hint, children, disabled, right }: { label: ReactNode; hint?: ReactNode; children: ReactNode; disabled?: boolean; right?: ReactNode }) {
+  const labelId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  // Associate the label with the first form control so screen readers (and tests) can find it.
+  useEffect(() => {
+    const control = ref.current?.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea, [role=radiogroup]');
+    if (control && !control.getAttribute('aria-label') && !control.getAttribute('aria-labelledby')) control.setAttribute('aria-labelledby', labelId);
+  });
   return (
-    <div className={`field${disabled ? ' disabled' : ''}`}>
+    <div className={`field${disabled ? ' disabled' : ''}`} ref={ref}>
       <div className="field-label">
-        <span className="grow">{label}</span>
+        <span className="grow" id={labelId}>{label}</span>
         {right}
       </div>
       {children}

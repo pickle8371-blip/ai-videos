@@ -501,6 +501,23 @@ export function GenerateParams({ mode }: { mode: GenMode }) {
           </div>
         )}
         <div className="section">
+          <h4>Reference images</h4>
+          {caps.maxReferenceImages ? (
+            <>
+              {form.referenceAssetIds.map((id, i) => (
+                <AssetSlot key={id} label={`Reference ${i + 1}`} allow={['image']} assetId={id} onChange={(v) => patch({ referenceAssetIds: v ? form.referenceAssetIds.map((x, j) => (j === i ? v : x)) : form.referenceAssetIds.filter((_, j) => j !== i) })} />
+              ))}
+              {form.referenceAssetIds.length < caps.maxReferenceImages && (
+                <AssetSlot label="Add reference" allow={['image']} assetId={null} onChange={(v) => v && patch({ referenceAssetIds: [...form.referenceAssetIds, v] })} />
+              )}
+            </>
+          ) : (
+            <div className="tiny muted">
+              {model?.name ?? 'This model'} does not accept reference images. Character and environment descriptions are added to the prompt instead{mode === 'image-to-video' ? '; the start frame is the visual reference' : ''}.
+            </div>
+          )}
+        </div>
+        <div className="section">
           <h4>Advanced</h4>
           <div className="grid2">
             <Field label="Seed" hint={na(caps.seed) ?? 'Empty = random'}>

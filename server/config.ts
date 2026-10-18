@@ -9,6 +9,8 @@ export interface ServerConfig {
   publicBaseUrl: string | null;
   limits: { maxVideoBytes: number; maxImageBytes: number; maxAudioBytes: number; maxProjectImportBytes: number };
   pollIntervalMs: number;
+  /** Overrides the job timeout from settings (used by tests; VOIDCRAFT_JOB_TIMEOUT_MS). */
+  jobTimeoutMs: number | null;
   ffmpegPath: string | null;
   ffprobePath: string | null;
   version: string;
@@ -36,6 +38,7 @@ export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig 
       maxProjectImportBytes: num(process.env.VOIDCRAFT_MAX_IMPORT_MB, 4096) * MB,
     },
     pollIntervalMs: num(process.env.VOIDCRAFT_POLL_MS, 4000),
+    jobTimeoutMs: process.env.VOIDCRAFT_JOB_TIMEOUT_MS ? num(process.env.VOIDCRAFT_JOB_TIMEOUT_MS, 0) || null : null,
     ffmpegPath: process.env.FFMPEG_PATH || null,
     ffprobePath: process.env.FFPROBE_PATH || null,
     version: '0.1.0',

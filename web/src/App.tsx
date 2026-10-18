@@ -226,8 +226,9 @@ export function App() {
         void saveProject();
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture phase so Ctrl+S also works while typing in fields that stop key propagation.
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
   return (
     <div className="shell">

@@ -285,18 +285,18 @@ export class JobManager extends EventEmitter {
 
   private async pollLoop(id: string, ctrl: AbortController): Promise<void> {
     let errors = 0;
-    const timeoutMs = this.settings.get().jobs.timeoutMinutes * 60_000;
+    const timeoutMs = this.config.jobTimeoutMs ?? this.settings.get().jobs.timeoutMinutes * 60_000;
     for (;;) {
       const job = this.get(id);
       if (!job || TERMINAL.has(job.status)) return;
       const startedAt = Date.parse(job.startedAt ?? job.createdAt);
       if (Date.now() - startedAt > timeoutMs) {
         await this.cancelRemote(job);
-        await this.patch(id, { status: 'failed', error: `Timed out after ${this.settings.get().jobs.timeoutMinutes} minutes. The provider may still finish; increase the timeout in Settings and retry.`, finishedAt: new Date().toISOString() });
+        await this.patch(id, { status: 'failed', error: `Timed out after ${Math.round(timeoutMs / 1000)} s. The provider may still finish; increase the timeout in Settings and retry.`, finishedAt: new Date().toISOString() });
         return;
       }
       const isLocal = job.providerId.startsWith('local');
-      await sleep(isLocal ? 500 : this.config.pollIntervalMs, ctrl.signal).catch(() => undefined);
+      await sleep(isLocal ? Math.min(500, this.config.pollIntervalMs) : this.config.pollIntervalMs, ctrl.signal).catch(() => undefined);
       if (ctrl.signal.aborted) return;
       try {
         const provider = this.registry.get(job.providerId);
