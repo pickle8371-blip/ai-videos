@@ -1,0 +1,21 @@
+import { defineConfig } from 'vitest/config';
+
+// Two projects keep mocked-provider tests separate from tests that drive the
+// real FFmpeg pipeline. Neither calls a paid AI API.
+export default defineConfig({
+  test: {
+    projects: [
+      { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' } },
+      {
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          environment: 'node',
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+          fileParallelism: false,
+        },
+      },
+    ],
+  },
+});

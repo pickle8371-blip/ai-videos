@@ -1,0 +1,11 @@
+node_modules/
+dist-web/
+dist-server/
+data/
+.voidcraft-test-*/
+test-results/
+playwright-report/
+*.log
+.env
+.env.*
+!.env.example
